@@ -5,6 +5,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type VoStorage struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Address  string `json:"address"`
+}
+
 type Storage struct {
 	cdb    *pgxpool.Pool
 	logger *logrus.Logger
