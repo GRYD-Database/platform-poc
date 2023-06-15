@@ -2,6 +2,7 @@ package transaction
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -20,7 +21,7 @@ func ParseEvent(a *abi.ABI, eventName string, c interface{}, e types.Log) error 
 	}
 	if len(e.Data) > 0 {
 		if err := a.UnpackIntoInterface(c, eventName, e.Data); err != nil {
-			return err
+			return fmt.Errorf("err unpacking to interface: %w", err)
 		}
 	}
 	var indexed abi.Arguments

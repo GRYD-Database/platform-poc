@@ -40,14 +40,14 @@ type Backend interface {
 func IsSynced(ctx context.Context, backend Backend, maxDelay time.Duration) (bool, time.Time, error) {
 	number, err := backend.BlockNumber(ctx)
 	if err != nil {
-		return false, time.Time{}, err
+		return false, time.Time{}, fmt.Errorf("cannot get block number :%w", err)
 	}
 	header, err := backend.HeaderByNumber(ctx, big.NewInt(int64(number)))
 	if errors.Is(err, ethereum.NotFound) {
 		return false, time.Time{}, nil
 	}
 	if err != nil {
-		return false, time.Time{}, err
+		return false, time.Time{}, fmt.Errorf("error getting header by number: %w", err)
 	}
 
 	blockTime := time.Unix(int64(header.Time), 0)
@@ -62,7 +62,7 @@ func WaitSynced(ctx context.Context, backend Backend, maxDelay time.Duration) er
 	for {
 		synced, blockTime, err := IsSynced(ctx, backend, maxDelay)
 		if err != nil {
-			return err
+			return fmt.Errorf("error checking if synced: %w", err)
 		}
 
 		if synced {
