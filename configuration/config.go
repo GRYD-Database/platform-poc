@@ -29,9 +29,9 @@ type Config struct {
 }
 
 type Contract struct {
-	ABI     string `mapstructure:"ABI"`
-	Name    string `mapstructure:"NAME"`
-	Address string `mapstructure:"ADDRESS"`
+	ABI     interface{} `mapstructure:"ABI"`
+	Name    string      `mapstructure:"NAME"`
+	Address string      `mapstructure:"ADDRESS"`
 }
 
 func Init() (*Config, error) {

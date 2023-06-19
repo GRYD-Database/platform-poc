@@ -1,6 +1,7 @@
 package server
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -50,6 +51,11 @@ func Init() error {
 	container.router = chi.NewRouter()
 	container.cors()
 	container.routes()
+
+	err = container.setContracts()
+	if err != nil {
+		return fmt.Errorf("err loading contracts: %w", err)
+	}
 
 	go func() {
 		container.startServer()
@@ -114,11 +120,17 @@ func (c *Container) startServer() {
 	}
 }
 
-func (c *Container) SetContracts() error {
-	grydContractABI, err := abi.JSON(strings.NewReader(c.config.GRYDContract.ABI))
+func (c *Container) setContracts() error {
+	grydABIMarshal, err := json.Marshal(c.config.GRYDContract.ABI)
+	if err != nil {
+		return fmt.Errorf("unable to marshal json: %w", err)
+	}
+
+	grydContractABI, err := abi.JSON(strings.NewReader(string(grydABIMarshal)))
 	if err != nil {
 		return fmt.Errorf("unable to parse gryd ABI: %w", err)
 	}
+
 	c.contracts = append(c.contracts, Contract{
 		ABI:     grydContractABI,
 		Address: common.HexToAddress(c.config.GRYDContract.Address),
