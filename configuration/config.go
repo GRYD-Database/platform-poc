@@ -30,7 +30,6 @@ type Config struct {
 
 type Contract struct {
 	ABI     interface{} `mapstructure:"ABI"`
-	Name    string      `mapstructure:"NAME"`
 	Address string      `mapstructure:"ADDRESS"`
 }
 

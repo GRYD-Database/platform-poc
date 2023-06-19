@@ -29,13 +29,6 @@ type Container struct {
 	router            *chi.Mux
 	pg                *pgxpool.Pool
 	storageController *controller.StorageController
-	contracts         []Contract
-}
-
-type Contract struct {
-	ABI     abi.ABI
-	Address common.Address
-	Name    string
 }
 
 func Init() error {
@@ -46,16 +39,16 @@ func Init() error {
 
 	container.logger.Info("Container Initialized Successfully")
 
-	container.storageController = controller.New(container.logger, storage.New(container.cdb, container.logger, container.pg))
+	GRYDContractAddress, GRYDContractABI, err := setContracts(container.config.GRYDContract.Address, container.config.GRYDContract.ABI)
+	if err != nil {
+		return fmt.Errorf("err loading gryd contract: %w", err)
+	}
+
+	container.storageController = controller.New(container.logger, storage.New(container.cdb, container.logger, container.pg, GRYDContractAddress, GRYDContractABI))
 
 	container.router = chi.NewRouter()
 	container.cors()
 	container.routes()
-
-	err = container.setContracts()
-	if err != nil {
-		return fmt.Errorf("err loading contracts: %w", err)
-	}
 
 	go func() {
 		container.startServer()
@@ -120,22 +113,16 @@ func (c *Container) startServer() {
 	}
 }
 
-func (c *Container) setContracts() error {
-	grydABIMarshal, err := json.Marshal(c.config.GRYDContract.ABI)
+func setContracts(address string, jsonABI interface{}) (common.Address, abi.ABI, error) {
+	jsonMarshaledABI, err := json.Marshal(jsonABI)
 	if err != nil {
-		return fmt.Errorf("unable to marshal json: %w", err)
+		return common.Address{}, abi.ABI{}, fmt.Errorf("unable to marshal json: %w", err)
 	}
 
-	grydContractABI, err := abi.JSON(strings.NewReader(string(grydABIMarshal)))
+	jsonToABI, err := abi.JSON(strings.NewReader(string(jsonMarshaledABI)))
 	if err != nil {
-		return fmt.Errorf("unable to parse gryd ABI: %w", err)
+		return common.Address{}, abi.ABI{}, fmt.Errorf("unable to parse ABI: %w", err)
 	}
 
-	c.contracts = append(c.contracts, Contract{
-		ABI:     grydContractABI,
-		Address: common.HexToAddress(c.config.GRYDContract.Address),
-		Name:    c.config.GRYDContract.Address,
-	})
-
-	return nil
+	return common.HexToAddress(address), jsonToABI, nil
 }

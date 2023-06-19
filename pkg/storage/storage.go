@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -32,13 +34,18 @@ type Storage struct {
 	cdb    *pgxpool.Pool
 	logger *logrus.Logger
 	pg     *pgxpool.Pool
+
+	GRYDContractAddress common.Address
+	GRYDContractABI     abi.ABI
 }
 
-func New(cdb *pgxpool.Pool, logger *logrus.Logger, pool *pgxpool.Pool) *Storage {
+func New(cdb *pgxpool.Pool, logger *logrus.Logger, pool *pgxpool.Pool, grydAddress common.Address, grydABI abi.ABI) *Storage {
 	return &Storage{
-		cdb:    cdb,
-		logger: logger,
-		pg:     pool,
+		cdb:                 cdb,
+		logger:              logger,
+		pg:                  pool,
+		GRYDContractAddress: grydAddress,
+		GRYDContractABI:     grydABI,
 	}
 }
 
