@@ -2,12 +2,16 @@ package server
 
 import (
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 	"github.com/gryd-database/platform-poc/cmd/server/controller"
 	"github.com/gryd-database/platform-poc/configuration"
+	"github.com/gryd-database/platform-poc/pkg/pg"
 	"github.com/gryd-database/platform-poc/pkg/storage"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -18,12 +22,19 @@ import (
 )
 
 type Container struct {
-	config *configuration.Config
-	logger *logrus.Logger
-	cdb    *pgxpool.Pool
-	router *chi.Mux
-
+	config            *configuration.Config
+	logger            *logrus.Logger
+	cdb               *pgxpool.Pool
+	router            *chi.Mux
+	pg                *pgxpool.Pool
 	storageController *controller.StorageController
+	contracts         []Contract
+}
+
+type Contract struct {
+	ABI     abi.ABI
+	Address common.Address
+	Name    string
 }
 
 func Init() error {
@@ -34,7 +45,7 @@ func Init() error {
 
 	container.logger.Info("Container Initialized Successfully")
 
-	container.storageController = controller.New(container.logger, storage.New(container.cdb, container.logger))
+	container.storageController = controller.New(container.logger, storage.New(container.cdb, container.logger, container.pg))
 
 	container.router = chi.NewRouter()
 	container.cors()
@@ -59,11 +70,20 @@ func NewContainer() (*Container, error) {
 	}
 
 	cdbInstance, err := cdb.Init(confInstance)
+	if err != nil {
+		return nil, fmt.Errorf("error bootstrapping cockroachdb: %w", err)
+	}
+
+	pgInstance, err := pg.InitPool(confInstance)
+	if err != nil {
+		return nil, fmt.Errorf("error bootstrapping pg: %w", err)
+	}
 
 	return &Container{
 		config: confInstance,
 		logger: loggerInstance,
 		cdb:    cdbInstance,
+		pg:     pgInstance,
 	}, nil
 }
 
@@ -89,7 +109,21 @@ func (c *Container) startServer() {
 
 	err := http.ListenAndServe(c.config.Address, c.router)
 	if err != nil {
-		c.logger.Info("error starting server at ", c.config.Address, " with error: ", err)
+		c.logger.Error("error starting server at ", c.config.Address, " with error: ", err)
 		panic(err)
 	}
+}
+
+func (c *Container) SetContracts() error {
+	grydContractABI, err := abi.JSON(strings.NewReader(c.config.GRYDContract.ABI))
+	if err != nil {
+		return fmt.Errorf("unable to parse gryd ABI: %w", err)
+	}
+	c.contracts = append(c.contracts, Contract{
+		ABI:     grydContractABI,
+		Address: common.HexToAddress(c.config.GRYDContract.Address),
+		Name:    c.config.GRYDContract.Address,
+	})
+
+	return nil
 }

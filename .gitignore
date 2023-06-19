@@ -10,3 +10,5 @@ redisdata
 configuration/*
 !configuration/config.go
 /pkg/domain/
+/migrations/tern.conf
+env.json
