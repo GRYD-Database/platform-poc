@@ -3,7 +3,6 @@
 .env
 logrus.log
 ./pkg/logger/logrus.log
-/pkg/pg/
 /pkg/domain/
 postgresqldata
 redisdata
