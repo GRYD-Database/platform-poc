@@ -6,6 +6,7 @@ import (
 	sq "github.com/Masterminds/squirrel"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/gryd-database/platform-poc/pkg/transaction"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -35,17 +36,21 @@ type Storage struct {
 	logger *logrus.Logger
 	pg     *pgxpool.Pool
 
-	GRYDContractAddress common.Address
-	GRYDContractABI     abi.ABI
+	owner               common.Address
+	txService           *transaction.TxService
+	grydContractAddress common.Address
+	grydContractABI     abi.ABI
 }
 
-func New(cdb *pgxpool.Pool, logger *logrus.Logger, pool *pgxpool.Pool, grydAddress common.Address, grydABI abi.ABI) *Storage {
+func New(txService *transaction.TxService, owner common.Address, cdb *pgxpool.Pool, logger *logrus.Logger, pool *pgxpool.Pool, grydAddress common.Address, grydABI abi.ABI) *Storage {
 	return &Storage{
 		cdb:                 cdb,
 		logger:              logger,
 		pg:                  pool,
-		GRYDContractAddress: grydAddress,
-		GRYDContractABI:     grydABI,
+		grydContractAddress: grydAddress,
+		grydContractABI:     grydABI,
+		owner:               owner,
+		txService:           txService,
 	}
 }
 

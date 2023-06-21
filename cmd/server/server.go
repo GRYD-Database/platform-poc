@@ -1,16 +1,19 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
-	"github.com/gryd-database/platform-poc/cmd/server/controller"
 	"github.com/gryd-database/platform-poc/configuration"
+	"github.com/gryd-database/platform-poc/pkg/node"
 	"github.com/gryd-database/platform-poc/pkg/pg"
 	"github.com/gryd-database/platform-poc/pkg/storage"
+	"github.com/gryd-database/platform-poc/pkg/transaction"
+	"golang.org/x/sync/semaphore"
 	"net/http"
 	"strings"
 	"time"
@@ -28,7 +31,11 @@ type Container struct {
 	cdb               *pgxpool.Pool
 	router            *chi.Mux
 	pg                *pgxpool.Pool
-	storageController *controller.StorageController
+	storageController *StorageController
+	ethAddress        common.Address
+	txService         *transaction.TxService
+
+	grydSemaphore *semaphore.Weighted
 }
 
 func Init() error {
@@ -44,7 +51,9 @@ func Init() error {
 		return fmt.Errorf("err loading gryd contract: %w", err)
 	}
 
-	container.storageController = controller.New(container.logger, storage.New(container.cdb, container.logger, container.pg, GRYDContractAddress, GRYDContractABI))
+	container.ethAddress, container.txService, err = node.InitChain(context.Background(), container.logger, container.config.ChainConfig.Endpoint, container.config.ChainConfig.PrivateKey)
+
+	container.storageController = New(container.logger, storage.New(container.txService, container.ethAddress, container.cdb, container.logger, container.pg, GRYDContractAddress, GRYDContractABI))
 
 	container.router = chi.NewRouter()
 	container.cors()
@@ -88,7 +97,14 @@ func NewContainer() (*Container, error) {
 
 func (c *Container) routes() {
 	c.router.Route("/storage", func(r chi.Router) {
+		c.grydAccessHandler()
 		r.Post("/create", c.storageController.Create)
+		r.Get("/", c.storageController.GetBalance)
+	})
+
+	c.router.Route("/balance", func(r chi.Router) {
+		c.grydAccessHandler()
+		r.Get("/get", c.storageController.GetBalance)
 	})
 }
 

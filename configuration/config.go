@@ -26,6 +26,12 @@ type Config struct {
 		LogEnv   string `mapstructure:"LOG_ENV"`
 	} `mapstructure:"LOGGER"`
 	GRYDContract Contract `mapstructure:"GRYD_CONTRACT"`
+	ChainConfig  Crypto   `mapstructure:"CRYPTO"`
+}
+
+type Crypto struct {
+	PrivateKey string `mapstructure:"PRIVATE_KEY"`
+	Endpoint   string `mapstructure:"ENDPOINT"`
 }
 
 type Contract struct {

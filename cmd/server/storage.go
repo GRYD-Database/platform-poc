@@ -1,9 +1,11 @@
-package controller
+package server
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/gryd-database/platform-poc/pkg/storage"
 	"github.com/sirupsen/logrus"
+	"math/big"
 	"net/http"
 )
 
@@ -15,7 +17,8 @@ func New(logger *logrus.Logger, service *storage.Storage) *StorageController {
 }
 
 type StorageService interface {
-	Create(voStorage *storage.VoStorage) (storage.DTOStorage, error)
+	Create(ctx context.Context, voStorage *storage.VoStorage) (*storage.DTOStorage, error)
+	GetBalance(ctx context.Context) (*big.Int, error)
 }
 
 type StorageController struct {
@@ -41,4 +44,15 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJson(w, resp, http.StatusOK)
+}
+
+func (c *StorageController) GetBalance(w http.ResponseWriter, r *http.Request) {
+	balance, err := c.storageService.GetBalance(r.Context())
+	if err != nil {
+		c.logger.Error("internal server error: ", err)
+		WriteJson(w, storage.VoStorage{}, http.StatusInternalServerError)
+		return
+	}
+
+	WriteJson(w, balance, http.StatusOK)
 }
