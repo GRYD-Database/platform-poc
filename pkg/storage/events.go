@@ -37,3 +37,7 @@ func (s *Storage) getBalance(ctx context.Context) (*big.Int, error) {
 
 	return abi.ConvertType(results[0], new(big.Int)).(*big.Int), nil
 }
+
+func (s *Storage) VerifyEvent(ctx context.Context) error {
+	return nil
+}

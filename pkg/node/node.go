@@ -6,7 +6,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/rpc"
-	signer2 "github.com/gryd-database/platform-poc/pkg/signer"
+	"github.com/gryd-database/platform-poc/pkg/signer"
 	"github.com/gryd-database/platform-poc/pkg/transaction"
 	"github.com/sirupsen/logrus"
 )
@@ -37,7 +37,7 @@ func InitChain(
 		return common.Address{}, nil, fmt.Errorf("could not get chain ID")
 	}
 
-	signer, err := signer2.New(hexKey)
+	signer, err := signer.New(hexKey)
 	if err != nil {
 		return common.Address{}, nil, err
 	}
