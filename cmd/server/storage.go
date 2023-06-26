@@ -19,6 +19,7 @@ func New(logger *logrus.Logger, service *storage.Storage) *StorageController {
 type StorageService interface {
 	Create(ctx context.Context, voStorage *storage.VoStorage) (*storage.DTOStorage, error)
 	GetBalance(ctx context.Context) (*big.Int, error)
+	VerifyEvent(ctx context.Context, hashTx string) (bool, error)
 }
 
 type StorageController struct {
@@ -32,14 +33,27 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&storageVo)
 	if err != nil {
 		c.logger.Info("invalid arguments in storageVo body")
-		WriteJson(w, storage.VoStorage{}, http.StatusBadRequest)
+		WriteJson(w, storage.DTOStorage{}, http.StatusBadRequest)
+		return
+	}
+
+	verified, err := c.storageService.VerifyEvent(r.Context(), storageVo.TxHash)
+	if err != nil {
+		c.logger.Error("internal server error: ", err)
+		WriteJson(w, storage.DTOStorage{}, http.StatusInternalServerError)
+		return
+	}
+
+	if !verified {
+		c.logger.Info("cannot verify event for tx: ", storageVo.TxHash)
+		WriteJson(w, storage.DTOStorage{}, http.StatusBadRequest)
 		return
 	}
 
 	resp, err := c.storageService.Create(r.Context(), &storageVo)
 	if err != nil {
 		c.logger.Error("internal server error: ", err)
-		WriteJson(w, storage.VoStorage{}, http.StatusInternalServerError)
+		WriteJson(w, storage.DTOStorage{}, http.StatusInternalServerError)
 		return
 	}
 

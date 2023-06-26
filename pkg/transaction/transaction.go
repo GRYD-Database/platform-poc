@@ -2,9 +2,11 @@ package transaction
 
 import (
 	"context"
+	"fmt"
 	"github.com/ethereum/go-ethereum"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/gryd-database/platform-poc/pkg/signer"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -73,6 +75,8 @@ type Service interface {
 	CancelTransaction(ctx context.Context, originalTxHash common.Hash) (common.Hash, error)
 	// TransactionFee retrieves the transaction fee
 	TransactionFee(ctx context.Context, txHash common.Hash) (*big.Int, error)
+	// FilterLogs filters the events from contract
+	FilterLogs(ctx context.Context, query ethereum.FilterQuery) (*[]types.Log, error)
 }
 
 type TxService struct {
@@ -81,11 +85,22 @@ type TxService struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	logger  *logrus.Logger
-	backend Backend
-	signer  signer.Signer
-	sender  common.Address
-	chainID *big.Int
+	logger    *logrus.Logger
+	backend   WrappedBackend
+	signer    signer.Signer
+	sender    common.Address
+	chainID   *big.Int
+	rpcClient *rpc.Client
+}
+
+func (t *TxService) FilterLogs(ctx context.Context, query ethereum.FilterQuery) (*[]types.Log, error) {
+
+	filteredLogs, err := t.backend.FilterLogs(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("unable to filter logs: %w", err)
+	}
+
+	return &filteredLogs, nil
 }
 
 func (t *TxService) Close() error {
@@ -116,8 +131,7 @@ func (t *TxService) Call(ctx context.Context, request *TxRequest) (result []byte
 }
 
 func (t *TxService) WaitForReceipt(ctx context.Context, txHash common.Hash) (receipt *types.Receipt, err error) {
-	//TODO implement me
-	panic("implement me")
+	return t.backend.TransactionReceipt(ctx, txHash)
 }
 
 func (t *TxService) WatchSentTransaction(txHash common.Hash) (<-chan types.Receipt, <-chan error, error) {
@@ -150,18 +164,18 @@ func (t *TxService) TransactionFee(ctx context.Context, txHash common.Hash) (*bi
 	panic("implement me")
 }
 
-func NewTxService(logger *logrus.Logger, backend Backend, signer signer.Signer, chainID *big.Int, address common.Address) (*TxService, error) {
+func NewTxService(rpcClient *rpc.Client, logger *logrus.Logger, backend WrappedBackend, signer signer.Signer, chainID *big.Int, address common.Address) (*TxService, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-
 	return &TxService{
-		wg:      sync.WaitGroup{},
-		lock:    sync.Mutex{},
-		ctx:     ctx,
-		cancel:  cancel,
-		logger:  logger,
-		backend: backend,
-		signer:  signer,
-		sender:  address,
-		chainID: chainID,
+		wg:        sync.WaitGroup{},
+		lock:      sync.Mutex{},
+		ctx:       ctx,
+		cancel:    cancel,
+		logger:    logger,
+		backend:   backend,
+		signer:    signer,
+		sender:    address,
+		chainID:   chainID,
+		rpcClient: rpcClient,
 	}, nil
 }

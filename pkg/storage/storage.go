@@ -31,6 +31,10 @@ type DTODSNInfo struct {
 	DSN string `json:"DSN"`
 }
 
+type Events struct {
+	storageBoughtTopic common.Hash
+}
+
 type Storage struct {
 	cdb    *pgxpool.Pool
 	logger *logrus.Logger
@@ -40,6 +44,8 @@ type Storage struct {
 	txService           *transaction.TxService
 	grydContractAddress common.Address
 	grydContractABI     abi.ABI
+
+	Events Events
 }
 
 func New(txService *transaction.TxService, owner common.Address, cdb *pgxpool.Pool, logger *logrus.Logger, pool *pgxpool.Pool, grydAddress common.Address, grydABI abi.ABI) *Storage {
@@ -51,6 +57,9 @@ func New(txService *transaction.TxService, owner common.Address, cdb *pgxpool.Po
 		grydContractABI:     grydABI,
 		owner:               owner,
 		txService:           txService,
+		Events: Events{
+			storageBoughtTopic: grydABI.Events["StorageBought"].ID,
+		},
 	}
 }
 

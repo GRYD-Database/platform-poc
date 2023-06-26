@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
 	"github.com/gryd-database/platform-poc/configuration"
@@ -35,6 +36,7 @@ type Container struct {
 	ethAddress        common.Address
 	txService         *transaction.TxService
 
+	rpcClient     *rpc.Client
 	grydSemaphore *semaphore.Weighted
 }
 
@@ -51,7 +53,7 @@ func Init() error {
 		return fmt.Errorf("err loading gryd contract: %w", err)
 	}
 
-	container.ethAddress, container.txService, err = node.InitChain(context.Background(), container.logger, container.config.ChainConfig.Endpoint, container.config.ChainConfig.PrivateKey)
+	container.rpcClient, container.ethAddress, container.txService, err = node.InitChain(context.Background(), container.logger, container.config.ChainConfig.Endpoint, container.config.ChainConfig.PrivateKey)
 
 	container.storageController = New(container.logger, storage.New(container.txService, container.ethAddress, container.cdb, container.logger, container.pg, GRYDContractAddress, GRYDContractABI))
 
