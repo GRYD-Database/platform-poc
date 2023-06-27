@@ -24,7 +24,7 @@ func (d *defaultSigner) EthereumAddress() (common.Address, error) {
 func New(hexKey string) (Signer, error) {
 	privateKey, err := crypto.HexToECDSA(hexKey)
 	if err != nil {
-		return nil, fmt.Errorf("eror generating private key from hex: %w ", err)
+		return nil, fmt.Errorf("error generating private key from hex: %w ", err)
 	}
 
 	publicKey := privateKey.Public()
