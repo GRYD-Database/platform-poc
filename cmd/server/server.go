@@ -55,7 +55,15 @@ func Init() error {
 
 	container.rpcClient, container.ethAddress, container.txService, err = node.InitChain(context.Background(), container.logger, container.config.ChainConfig.Endpoint, container.config.ChainConfig.PrivateKey)
 
-	container.storageController = New(container.logger, storage.New(container.txService, container.ethAddress, container.cdb, container.logger, container.pg, GRYDContractAddress, GRYDContractABI))
+	grydContract := storage.NewContract(container.txService, container.ethAddress, container.logger, GRYDContractAddress, GRYDContractABI)
+
+	container.storageController = New(
+		container.logger,
+		storage.New(
+			container.ethAddress,
+			container.cdb,
+			container.logger,
+			container.pg), grydContract)
 
 	container.router = chi.NewRouter()
 	container.cors()

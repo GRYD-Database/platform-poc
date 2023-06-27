@@ -7,8 +7,23 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/gryd-database/platform-poc/pkg/transaction"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"math/big"
 )
+
+type Contract struct {
+	txService           *transaction.TxService
+	grydContractAddress common.Address
+	grydContractABI     abi.ABI
+	owner               common.Address
+	logger              *logrus.Logger
+
+	Events Events
+}
+
+type Events struct {
+	storageBoughtTopic common.Hash
+}
 
 type eventBuyStorage struct {
 	Buyer    common.Address
@@ -16,11 +31,24 @@ type eventBuyStorage struct {
 	Size     *big.Int
 }
 
-func (s *Storage) GetBalance(ctx context.Context) (*big.Int, error) {
+func NewContract(txService *transaction.TxService, owner common.Address, logger *logrus.Logger, grydAddress common.Address, grydABI abi.ABI) *Contract {
+	return &Contract{
+		txService:           txService,
+		grydContractAddress: grydAddress,
+		grydContractABI:     grydABI,
+		owner:               owner,
+		Events: Events{
+			storageBoughtTopic: grydABI.Events["StorageBought"].ID,
+		},
+		logger: logger,
+	}
+}
+
+func (s *Contract) GetBalance(ctx context.Context) (*big.Int, error) {
 	return s.getBalance(ctx)
 }
 
-func (s *Storage) getBalance(ctx context.Context) (*big.Int, error) {
+func (s *Contract) getBalance(ctx context.Context) (*big.Int, error) {
 	callData, err := s.grydContractABI.Pack("balanceOf", s.owner)
 	if err != nil {
 		return nil, err
@@ -68,7 +96,7 @@ func (s *Storage) getBalance(ctx context.Context) (*big.Int, error) {
 //	return false, nil
 //}
 
-func (s *Storage) VerifyEvent(ctx context.Context, hashTx string) (bool, error) {
+func (s *Contract) VerifyEvent(ctx context.Context, hashTx string) (bool, error) {
 	receipt, err := s.txService.WaitForReceipt(ctx, common.HexToHash(hashTx))
 	if err != nil {
 		return false, fmt.Errorf("error getting the receipt from tx hash: %s with error: %w", hashTx, err)

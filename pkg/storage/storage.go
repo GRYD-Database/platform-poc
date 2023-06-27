@@ -4,9 +4,7 @@ import (
 	"context"
 	"fmt"
 	sq "github.com/Masterminds/squirrel"
-	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/gryd-database/platform-poc/pkg/transaction"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -31,35 +29,20 @@ type DTODSNInfo struct {
 	DSN string `json:"DSN"`
 }
 
-type Events struct {
-	storageBoughtTopic common.Hash
-}
-
 type Storage struct {
 	cdb    *pgxpool.Pool
 	logger *logrus.Logger
 	pg     *pgxpool.Pool
 
-	owner               common.Address
-	txService           *transaction.TxService
-	grydContractAddress common.Address
-	grydContractABI     abi.ABI
-
-	Events Events
+	owner common.Address
 }
 
-func New(txService *transaction.TxService, owner common.Address, cdb *pgxpool.Pool, logger *logrus.Logger, pool *pgxpool.Pool, grydAddress common.Address, grydABI abi.ABI) *Storage {
+func New(owner common.Address, cdb *pgxpool.Pool, logger *logrus.Logger, pool *pgxpool.Pool) *Storage {
 	return &Storage{
-		cdb:                 cdb,
-		logger:              logger,
-		pg:                  pool,
-		grydContractAddress: grydAddress,
-		grydContractABI:     grydABI,
-		owner:               owner,
-		txService:           txService,
-		Events: Events{
-			storageBoughtTopic: grydABI.Events["StorageBought"].ID,
-		},
+		cdb:    cdb,
+		logger: logger,
+		pg:     pool,
+		owner:  owner,
 	}
 }
 

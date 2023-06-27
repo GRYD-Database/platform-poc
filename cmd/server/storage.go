@@ -9,10 +9,11 @@ import (
 	"net/http"
 )
 
-func New(logger *logrus.Logger, service *storage.Storage) *StorageController {
+func New(logger *logrus.Logger, service *storage.Storage, grydContract *storage.Contract) *StorageController {
 	return &StorageController{
 		logger:         logger,
 		storageService: service,
+		grydService:    grydContract,
 	}
 }
 
@@ -25,6 +26,7 @@ type StorageService interface {
 type StorageController struct {
 	logger         *logrus.Logger
 	storageService *storage.Storage
+	grydService    *storage.Contract
 }
 
 func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
@@ -37,7 +39,7 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	verified, err := c.storageService.VerifyEvent(r.Context(), storageVo.TxHash)
+	verified, err := c.grydService.VerifyEvent(r.Context(), storageVo.TxHash)
 	if err != nil {
 		c.logger.Error("internal server error: ", err)
 		WriteJson(w, storage.DTOStorage{}, http.StatusInternalServerError)
@@ -61,7 +63,7 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *StorageController) GetBalance(w http.ResponseWriter, r *http.Request) {
-	balance, err := c.storageService.GetBalance(r.Context())
+	balance, err := c.grydService.GetBalance(r.Context())
 	if err != nil {
 		c.logger.Error("internal server error: ", err)
 		WriteJson(w, storage.VoStorage{}, http.StatusInternalServerError)
