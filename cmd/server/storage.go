@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"math/big"
 	"net/http"
+	"regexp"
 )
 
 func New(logger *logrus.Logger, service *storage.Storage, grydContract *storage.Contract) *StorageController {
@@ -41,6 +42,22 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&storageVo)
 	if err != nil {
 		c.logger.Info("invalid arguments in storageVo body")
+		WriteJson(w, storage.DTOStorage{}, http.StatusBadRequest)
+		return
+	}
+
+	reInput := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
+	if !(reInput.MatchString(storageVo.Wallet)) {
+		c.logger.Info("invalid wallet address:" + storageVo.Wallet)
+
+		WriteJson(w, storage.DTOStorage{}, http.StatusBadRequest)
+		return
+	}
+
+	reInput = regexp.MustCompile("^0x([A-Fa-f0-9]{64})$")
+	if !(reInput.MatchString(storageVo.TxHash)) {
+		c.logger.Info("invalid tx hash:" + storageVo.TxHash)
+
 		WriteJson(w, storage.DTOStorage{}, http.StatusBadRequest)
 		return
 	}
