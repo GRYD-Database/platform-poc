@@ -7,6 +7,7 @@ require (
 	github.com/ethereum/go-ethereum v1.12.0
 	github.com/go-chi/chi v1.5.4
 	github.com/go-chi/cors v1.2.1
+	github.com/gofrs/uuid v4.0.0+incompatible
 	github.com/jackc/pgx/v4 v4.18.1
 	github.com/pkg/errors v0.9.1
 	github.com/sirupsen/logrus v1.9.3

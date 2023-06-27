@@ -3,7 +3,9 @@ package server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/gryd-database/platform-poc/pkg/storage"
+	"github.com/gryd-database/platform-poc/pkg/transaction"
 	"github.com/sirupsen/logrus"
 	"math/big"
 	"net/http"
@@ -19,14 +21,18 @@ func New(logger *logrus.Logger, service *storage.Storage, grydContract *storage.
 
 type StorageService interface {
 	Create(ctx context.Context, voStorage *storage.VoStorage) (*storage.DTOStorage, error)
+	AssignStorage() (string, error)
+}
+
+type GRYDContract interface {
 	GetBalance(ctx context.Context) (*big.Int, error)
 	VerifyEvent(ctx context.Context, hashTx string) (bool, error)
 }
 
 type StorageController struct {
 	logger         *logrus.Logger
-	storageService *storage.Storage
-	grydService    *storage.Contract
+	storageService StorageService
+	grydService    GRYDContract
 }
 
 func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
@@ -41,6 +47,27 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 
 	verified, err := c.grydService.VerifyEvent(r.Context(), storageVo.TxHash)
 	if err != nil {
+		if errors.Is(err, transaction.ErrEventNotFound) {
+			c.logger.Info("event not found for tx hash:" + storageVo.TxHash)
+
+			WriteJson(w, storage.DTOStorage{}, http.StatusNotFound)
+			return
+		}
+
+		if errors.Is(err, transaction.ErrNoTopic) {
+			c.logger.Info("topic not found for tx hash:" + storageVo.TxHash)
+
+			WriteJson(w, storage.DTOStorage{}, http.StatusNotFound)
+			return
+		}
+
+		if errors.Is(err, storage.ErrUnprocessableEvent) {
+			c.logger.Info("tx receipt or event does not exist for hash:" + storageVo.TxHash)
+
+			WriteJson(w, storage.DTOStorage{}, http.StatusNotFound)
+			return
+		}
+
 		c.logger.Error("internal server error: ", err)
 		WriteJson(w, storage.DTOStorage{}, http.StatusInternalServerError)
 		return
@@ -48,13 +75,18 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 
 	if !verified {
 		c.logger.Info("cannot verify event for tx: ", storageVo.TxHash)
+
 		WriteJson(w, storage.DTOStorage{}, http.StatusBadRequest)
 		return
 	}
 
+	dsn, _ := c.storageService.AssignStorage()
+	println(dsn)
+
 	resp, err := c.storageService.Create(r.Context(), &storageVo)
 	if err != nil {
 		c.logger.Error("internal server error: ", err)
+
 		WriteJson(w, storage.DTOStorage{}, http.StatusInternalServerError)
 		return
 	}

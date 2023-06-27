@@ -7,6 +7,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+func (s *Storage) Create(ctx context.Context, voStorage *VoStorage) (*DTOStorage, error) {
+	resp, err := s.create(ctx, voStorage)
+	if err != nil {
+		return resp, fmt.Errorf("unable to store tx info in db: %w", err)
+	}
+	return resp, nil
+}
+
 func (s *Storage) create(ctx context.Context, voStorage *VoStorage) (*DTOStorage, error) {
 	sqls, args, err := QB.Insert("storage").
 		Columns("wallet", "txHash").
@@ -25,10 +33,10 @@ func (s *Storage) create(ctx context.Context, voStorage *VoStorage) (*DTOStorage
 	}
 
 	for rows.Next() {
-		err := rows.Scan(&dtoStorage.Wallet, &dtoStorage.TxHash, &dtoStorage.CreatedAt)
+		err := rows.Scan(&dtoStorage.ID, &dtoStorage.Wallet, &dtoStorage.TxHash, &dtoStorage.CreatedAt)
 		if err != nil {
 			if errors.Is(err, pgx.ErrNoRows) {
-				return nil, nil
+				return nil, fmt.Errorf("cannot fetch created rows: %w", err)
 			}
 			return nil, fmt.Errorf("error scanning for create storage: %w", err)
 		}

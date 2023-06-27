@@ -1,10 +1,9 @@
 package storage
 
 import (
-	"context"
-	"fmt"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 	"time"
@@ -20,6 +19,7 @@ type VoStorage struct {
 }
 
 type DTOStorage struct {
+	ID        uuid.UUID `json:"id"`
 	Wallet    string    `json:"wallet"`
 	TxHash    string    `json:"txHash"`
 	CreatedAt time.Time `json:"createdAt"`
@@ -46,10 +46,6 @@ func New(owner common.Address, cdb *pgxpool.Pool, logger *logrus.Logger, pool *p
 	}
 }
 
-func (s *Storage) Create(ctx context.Context, voStorage *VoStorage) (*DTOStorage, error) {
-	resp, err := s.create(ctx, voStorage)
-	if err != nil {
-		return resp, fmt.Errorf("unable to store tx info in db: %w", err)
-	}
-	return resp, nil
+func (s *Storage) AssignStorage() (string, error) {
+	return "", nil
 }

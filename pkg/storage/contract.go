@@ -11,6 +11,10 @@ import (
 	"math/big"
 )
 
+var (
+	ErrUnprocessableEvent = errors.New("event cannot be processed or does not exist")
+)
+
 type Contract struct {
 	txService           *transaction.TxService
 	grydContractAddress common.Address
@@ -51,7 +55,7 @@ func (s *Contract) GetBalance(ctx context.Context) (*big.Int, error) {
 func (s *Contract) getBalance(ctx context.Context) (*big.Int, error) {
 	callData, err := s.grydContractABI.Pack("balanceOf", s.owner)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to pack callData: %w", err)
 	}
 
 	result, err := s.txService.Call(ctx, &transaction.TxRequest{
@@ -59,12 +63,12 @@ func (s *Contract) getBalance(ctx context.Context) (*big.Int, error) {
 		Data: callData,
 	})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("err calling tx service: %w", err)
 	}
 
 	results, err := s.grydContractABI.Unpack("balanceOf", result)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("unable to unpack callData: %w", err)
 	}
 
 	if len(results) == 0 {
@@ -73,28 +77,6 @@ func (s *Contract) getBalance(ctx context.Context) (*big.Int, error) {
 
 	return abi.ConvertType(results[0], new(big.Int)).(*big.Int), nil
 }
-
-//func (s *Storage) VerifyEvent(ctx context.Context, hashTx string) (bool, error) {
-//	hash := common.HexToHash(hashTx)
-//	query := ethereum.FilterQuery{
-//		Addresses: []common.Address{s.grydContractAddress},
-//		BlockHash: &hash,
-//		Topics: [][]common.Hash{
-//			{
-//				s.Events.storageBoughtTopic,
-//			},
-//		},
-//	}
-//	logs, err := s.txService.FilterLogs(ctx, query)
-//	if err != nil {
-//		log.Fatal(err)
-//	}
-//
-//	for {
-//
-//	}
-//	return false, nil
-//}
 
 func (s *Contract) VerifyEvent(ctx context.Context, hashTx string) (bool, error) {
 	receipt, err := s.txService.WaitForReceipt(ctx, common.HexToHash(hashTx))
@@ -108,12 +90,12 @@ func (s *Contract) VerifyEvent(ctx context.Context, hashTx string) (bool, error)
 		if ev.Address == s.grydContractAddress && len(ev.Topics) > 0 && ev.Topics[0] == s.Events.storageBoughtTopic {
 			err = transaction.ParseEvent(&s.grydContractABI, "StorageBought", &event, *ev)
 			if err != nil {
-				return false, fmt.Errorf("no events found for the corresponding tx hash: %s with error: %w", hashTx, err)
+				return false, fmt.Errorf("error parsing event of hash: %s with error: %w", hashTx, err)
 			}
+		} else {
+			return false, ErrUnprocessableEvent
 		}
 	}
 
-	testVal := fmt.Sprintf("Buyer Address: %s\nBuyerUsername: %s\nStorage Size: %d", event.Buyer.String(), event.UserName, event.Size.Int64())
-	fmt.Println(testVal)
 	return true, nil
 }

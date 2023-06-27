@@ -109,7 +109,6 @@ func (c *Container) routes() {
 	c.router.Route("/storage", func(r chi.Router) {
 		c.grydAccessHandler()
 		r.Post("/create", c.storageController.Create)
-		r.Get("/", c.storageController.GetBalance)
 	})
 
 	c.router.Route("/balance", func(r chi.Router) {
