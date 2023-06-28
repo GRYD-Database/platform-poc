@@ -1,13 +1,22 @@
 package server
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/cors"
-	"github.com/gryd-database/platform-poc/cmd/server/controller"
 	"github.com/gryd-database/platform-poc/configuration"
+	"github.com/gryd-database/platform-poc/pkg/node"
+	"github.com/gryd-database/platform-poc/pkg/pg"
 	"github.com/gryd-database/platform-poc/pkg/storage"
+	"github.com/gryd-database/platform-poc/pkg/transaction"
+	"golang.org/x/sync/semaphore"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v4/pgxpool"
@@ -18,12 +27,17 @@ import (
 )
 
 type Container struct {
-	config *configuration.Config
-	logger *logrus.Logger
-	cdb    *pgxpool.Pool
-	router *chi.Mux
+	config            *configuration.Config
+	logger            *logrus.Logger
+	cdb               *pgxpool.Pool
+	router            *chi.Mux
+	pg                *pgxpool.Pool
+	storageController *StorageController
+	ethAddress        common.Address
+	txService         *transaction.TxService
 
-	storageController *controller.StorageController
+	rpcClient     *rpc.Client
+	grydSemaphore *semaphore.Weighted
 }
 
 func Init() error {
@@ -34,7 +48,22 @@ func Init() error {
 
 	container.logger.Info("Container Initialized Successfully")
 
-	container.storageController = controller.New(container.logger, storage.New(container.cdb, container.logger))
+	GRYDContractAddress, GRYDContractABI, err := setContracts(container.config.GRYDContract.Address, container.config.GRYDContract.ABI)
+	if err != nil {
+		return fmt.Errorf("err loading gryd contract: %w", err)
+	}
+
+	container.rpcClient, container.ethAddress, container.txService, err = node.InitChain(context.Background(), container.logger, container.config.ChainConfig.Endpoint, container.config.ChainConfig.PrivateKey)
+
+	grydContract := storage.NewContract(container.txService, container.ethAddress, container.logger, GRYDContractAddress, GRYDContractABI)
+
+	container.storageController = New(
+		container.logger,
+		storage.New(
+			container.ethAddress,
+			container.cdb,
+			container.logger,
+			container.pg), grydContract)
 
 	container.router = chi.NewRouter()
 	container.cors()
@@ -59,17 +88,32 @@ func NewContainer() (*Container, error) {
 	}
 
 	cdbInstance, err := cdb.Init(confInstance)
+	if err != nil {
+		return nil, fmt.Errorf("error bootstrapping cockroachdb: %w", err)
+	}
+
+	pgInstance, err := pg.InitPool(confInstance)
+	if err != nil {
+		return nil, fmt.Errorf("error bootstrapping pg: %w", err)
+	}
 
 	return &Container{
 		config: confInstance,
 		logger: loggerInstance,
 		cdb:    cdbInstance,
+		pg:     pgInstance,
 	}, nil
 }
 
 func (c *Container) routes() {
 	c.router.Route("/storage", func(r chi.Router) {
+		c.grydAccessHandler()
 		r.Post("/create", c.storageController.Create)
+	})
+
+	c.router.Route("/balance", func(r chi.Router) {
+		c.grydAccessHandler()
+		r.Get("/get", c.storageController.GetBalance)
 	})
 }
 
@@ -89,7 +133,21 @@ func (c *Container) startServer() {
 
 	err := http.ListenAndServe(c.config.Address, c.router)
 	if err != nil {
-		c.logger.Info("error starting server at ", c.config.Address, " with error: ", err)
+		c.logger.Error("error starting server at ", c.config.Address, " with error: ", err)
 		panic(err)
 	}
+}
+
+func setContracts(address string, jsonABI interface{}) (common.Address, abi.ABI, error) {
+	jsonMarshaledABI, err := json.Marshal(jsonABI)
+	if err != nil {
+		return common.Address{}, abi.ABI{}, fmt.Errorf("unable to marshal json: %w", err)
+	}
+
+	jsonToABI, err := abi.JSON(strings.NewReader(string(jsonMarshaledABI)))
+	if err != nil {
+		return common.Address{}, abi.ABI{}, fmt.Errorf("unable to parse ABI: %w", err)
+	}
+
+	return common.HexToAddress(address), jsonToABI, nil
 }

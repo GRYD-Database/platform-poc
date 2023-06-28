@@ -1,38 +1,57 @@
 package configuration
 
 import (
-	"fmt"
-
-	"github.com/caarlos0/env/v6"
+	"github.com/spf13/viper"
 )
 
 type Config struct {
-	Address  string `env:"ADDRESS"`
+	Address  string `mapstructure:"ADDRESS"`
 	Postgres struct {
-		Host       string `env:"DB_HOST"`
-		Password   string `env:"DB_PASSWORD"`
-		Port       string `env:"DB_PORT"`
-		DBName     string `env:"DB_NAME"`
-		DBUsername string `env:"DB_USERNAME"`
-	}
+		Host       string `mapstructure:"DB_HOST"`
+		Password   string `mapstructure:"DB_PASSWORD"`
+		Port       string `mapstructure:"DB_PORT"`
+		DBName     string `mapstructure:"DB_NAME"`
+		DBUsername string `mapstructure:"DB_USERNAME"`
+	} `mapstructure:"PG"`
 	CockroachDB struct {
-		User     string `env:"CRDB_USER"`
-		Password string `env:"CRDB_PASSWORD"`
-		Port     string `env:"CRDB_PORT"`
-		DBName   string `env:"CRDB_DB"`
-		Server   string `env:"CRDB_SERVER"`
-		SSLMode  string `env:"CRDB_SSLMODE"`
-	}
+		User     string `mapstructure:"CRDB_USER"`
+		Password string `mapstructure:"CRDB_PASSWORD"`
+		Port     string `mapstructure:"CRDB_PORT"`
+		DBName   string `mapstructure:"CRDB_DB"`
+		Server   string `mapstructure:"CRDB_SERVER"`
+		SSLMode  string `mapstructure:"CRDB_SSLMODE"`
+	} `mapstructure:"CDB"`
 	Logger struct {
-		LogLevel string `env:"LOG_LEVEL"`
-		LogEnv   string `env:"LOG_ENV"`
-	}
+		LogLevel string `mapstructure:"LOG_LEVEL"`
+		LogEnv   string `mapstructure:"LOG_ENV"`
+	} `mapstructure:"LOGGER"`
+	GRYDContract Contract `mapstructure:"GRYD_CONTRACT"`
+	ChainConfig  Crypto   `mapstructure:"CRYPTO"`
+}
+
+type Crypto struct {
+	PrivateKey string `mapstructure:"PRIVATE_KEY"`
+	Endpoint   string `mapstructure:"ENDPOINT"`
+}
+
+type Contract struct {
+	ABI     interface{} `mapstructure:"ABI"`
+	Address string      `mapstructure:"ADDRESS"`
 }
 
 func Init() (*Config, error) {
-	cfg := &Config{}
-	if err := env.Parse(cfg); err != nil {
-		return nil, fmt.Errorf("error parsing env variables: %w", err)
+	viper.AddConfigPath(".")
+	viper.SetConfigName("env.json")
+	viper.SetConfigType("json")
+
+	viper.AutomaticEnv()
+
+	err := viper.ReadInConfig()
+	if err != nil {
+		return nil, err
 	}
-	return cfg, nil
+	config := Config{}
+	err = viper.Unmarshal(&config)
+
+	return &config, nil
 }

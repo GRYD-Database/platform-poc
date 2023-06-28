@@ -1,28 +1,51 @@
 package storage
 
 import (
+	sq "github.com/Masterminds/squirrel"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/gofrs/uuid"
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
+	"time"
 )
 
+//nolint:golint,gochecknoglobals,varnamelen
+var QB = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+// VoStorage struct contains Wallet and TxHash where Wallet is the address and TxHash is the transaction that was sent over network
 type VoStorage struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-	Address  string `json:"address"`
+	Wallet string `json:"wallet"`
+	TxHash string `json:"txHash"`
+}
+
+type DTOStorage struct {
+	ID        uuid.UUID `json:"id"`
+	Wallet    string    `json:"wallet"`
+	TxHash    string    `json:"txHash"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+type DTODSNInfo struct {
+	DSN string `json:"DSN"`
 }
 
 type Storage struct {
 	cdb    *pgxpool.Pool
 	logger *logrus.Logger
+	pg     *pgxpool.Pool
+
+	owner common.Address
 }
 
-func New(cdb *pgxpool.Pool, logger *logrus.Logger) *Storage {
+func New(owner common.Address, cdb *pgxpool.Pool, logger *logrus.Logger, pool *pgxpool.Pool) *Storage {
 	return &Storage{
 		cdb:    cdb,
 		logger: logger,
+		pg:     pool,
+		owner:  owner,
 	}
 }
 
-func (s *Storage) Create() error {
-	return nil
+func (s *Storage) AssignStorage() (string, error) {
+	return "", nil
 }

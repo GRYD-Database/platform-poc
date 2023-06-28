@@ -11,20 +11,20 @@ import (
 )
 
 var (
-	_ Backend = (*wrappedBackend)(nil)
+	_ Backend = (*WrappedBackend)(nil)
 )
 
-type wrappedBackend struct {
+type WrappedBackend struct {
 	backend Backend
 }
 
-func NewBackend(backend Backend) Backend {
-	return &wrappedBackend{
+func NewBackend(backend Backend) *WrappedBackend {
+	return &WrappedBackend{
 		backend: backend,
 	}
 }
 
-func (b *wrappedBackend) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
+func (b *WrappedBackend) TransactionReceipt(ctx context.Context, txHash common.Hash) (*types.Receipt, error) {
 	receipt, err := b.backend.TransactionReceipt(ctx, txHash)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get tx receipt:%w", err)
@@ -32,7 +32,7 @@ func (b *wrappedBackend) TransactionReceipt(ctx context.Context, txHash common.H
 	return receipt, nil
 }
 
-func (b *wrappedBackend) TransactionByHash(ctx context.Context, hash common.Hash) (*types.Transaction, bool, error) {
+func (b *WrappedBackend) TransactionByHash(ctx context.Context, hash common.Hash) (*types.Transaction, bool, error) {
 	tx, isPending, err := b.backend.TransactionByHash(ctx, hash)
 	if err != nil {
 		return nil, false, fmt.Errorf("failed to get tx by hash:%w", err)
@@ -40,7 +40,7 @@ func (b *wrappedBackend) TransactionByHash(ctx context.Context, hash common.Hash
 	return tx, isPending, err
 }
 
-func (b *wrappedBackend) BlockNumber(ctx context.Context) (uint64, error) {
+func (b *WrappedBackend) BlockNumber(ctx context.Context) (uint64, error) {
 	blockNumber, err := b.backend.BlockNumber(ctx)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get block number:%w", err)
@@ -48,7 +48,7 @@ func (b *wrappedBackend) BlockNumber(ctx context.Context) (uint64, error) {
 	return blockNumber, nil
 }
 
-func (b *wrappedBackend) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
+func (b *WrappedBackend) HeaderByNumber(ctx context.Context, number *big.Int) (*types.Header, error) {
 	header, err := b.backend.HeaderByNumber(ctx, number)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get header by number:%w", err)
@@ -56,7 +56,7 @@ func (b *wrappedBackend) HeaderByNumber(ctx context.Context, number *big.Int) (*
 	return header, nil
 }
 
-func (b *wrappedBackend) BalanceAt(ctx context.Context, address common.Address, block *big.Int) (*big.Int, error) {
+func (b *WrappedBackend) BalanceAt(ctx context.Context, address common.Address, block *big.Int) (*big.Int, error) {
 
 	balance, err := b.backend.BalanceAt(ctx, address, block)
 	if err != nil {
@@ -65,7 +65,7 @@ func (b *wrappedBackend) BalanceAt(ctx context.Context, address common.Address, 
 	return balance, nil
 }
 
-func (b *wrappedBackend) NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error) {
+func (b *WrappedBackend) NonceAt(ctx context.Context, account common.Address, blockNumber *big.Int) (uint64, error) {
 
 	nonce, err := b.backend.NonceAt(ctx, account, blockNumber)
 	if err != nil {
@@ -74,7 +74,7 @@ func (b *wrappedBackend) NonceAt(ctx context.Context, account common.Address, bl
 	return nonce, nil
 }
 
-func (b *wrappedBackend) CodeAt(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error) {
+func (b *WrappedBackend) CodeAt(ctx context.Context, contract common.Address, blockNumber *big.Int) ([]byte, error) {
 
 	code, err := b.backend.CodeAt(ctx, contract, blockNumber)
 	if err != nil {
@@ -83,7 +83,7 @@ func (b *wrappedBackend) CodeAt(ctx context.Context, contract common.Address, bl
 	return code, nil
 }
 
-func (b *wrappedBackend) CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
+func (b *WrappedBackend) CallContract(ctx context.Context, call ethereum.CallMsg, blockNumber *big.Int) ([]byte, error) {
 
 	result, err := b.backend.CallContract(ctx, call, blockNumber)
 	if err != nil {
@@ -92,7 +92,7 @@ func (b *wrappedBackend) CallContract(ctx context.Context, call ethereum.CallMsg
 	return result, nil
 }
 
-func (b *wrappedBackend) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
+func (b *WrappedBackend) PendingNonceAt(ctx context.Context, account common.Address) (uint64, error) {
 	nonce, err := b.backend.PendingNonceAt(ctx, account)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get pending nonce:%w", err)
@@ -100,7 +100,7 @@ func (b *wrappedBackend) PendingNonceAt(ctx context.Context, account common.Addr
 	return nonce, nil
 }
 
-func (b *wrappedBackend) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
+func (b *WrappedBackend) SuggestGasPrice(ctx context.Context) (*big.Int, error) {
 	gasPrice, err := b.backend.SuggestGasPrice(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get suggested gas price:%w", err)
@@ -108,7 +108,7 @@ func (b *wrappedBackend) SuggestGasPrice(ctx context.Context) (*big.Int, error) 
 	return gasPrice, nil
 }
 
-func (b *wrappedBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
+func (b *WrappedBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error) {
 	gasTipCap, err := b.backend.SuggestGasTipCap(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get suggested tip:%w", err)
@@ -116,7 +116,7 @@ func (b *wrappedBackend) SuggestGasTipCap(ctx context.Context) (*big.Int, error)
 	return gasTipCap, nil
 }
 
-func (b *wrappedBackend) EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error) {
+func (b *WrappedBackend) EstimateGas(ctx context.Context, call ethereum.CallMsg) (gas uint64, err error) {
 	gas, err = b.backend.EstimateGas(ctx, call)
 	if err != nil {
 		return 0, fmt.Errorf("failed to get gas estimate:%w", err)
@@ -124,7 +124,7 @@ func (b *wrappedBackend) EstimateGas(ctx context.Context, call ethereum.CallMsg)
 	return gas, nil
 }
 
-func (b *wrappedBackend) SendTransaction(ctx context.Context, tx *types.Transaction) error {
+func (b *WrappedBackend) SendTransaction(ctx context.Context, tx *types.Transaction) error {
 	err := b.backend.SendTransaction(ctx, tx)
 	if err != nil {
 		return fmt.Errorf("failed to send tx:%w", err)
@@ -132,7 +132,7 @@ func (b *wrappedBackend) SendTransaction(ctx context.Context, tx *types.Transact
 	return nil
 }
 
-func (b *wrappedBackend) FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error) {
+func (b *WrappedBackend) FilterLogs(ctx context.Context, query ethereum.FilterQuery) ([]types.Log, error) {
 	logs, err := b.backend.FilterLogs(ctx, query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to filter logs:%w", err)
@@ -140,7 +140,7 @@ func (b *wrappedBackend) FilterLogs(ctx context.Context, query ethereum.FilterQu
 	return logs, nil
 }
 
-func (b *wrappedBackend) ChainID(ctx context.Context) (*big.Int, error) {
+func (b *WrappedBackend) ChainID(ctx context.Context) (*big.Int, error) {
 	chainID, err := b.backend.ChainID(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get chainID:%w", err)
@@ -148,6 +148,6 @@ func (b *wrappedBackend) ChainID(ctx context.Context) (*big.Int, error) {
 	return chainID, nil
 }
 
-func (b *wrappedBackend) Close() {
+func (b *WrappedBackend) Close() {
 	b.backend.Close()
 }
