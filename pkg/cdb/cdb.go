@@ -16,6 +16,9 @@ func Init(config *configuration.Config) (*pgxpool.Pool, error) {
 
 	ctx := context.Background()
 	conn, err := pgxpool.Connect(context.Background(), dsn)
+	if err != nil {
+		return nil, fmt.Errorf("faioled to init cockroachdb: %w", err)
+	}
 
 	var now time.Time
 	err = conn.QueryRow(ctx, "SELECT NOW()").Scan(&now)
