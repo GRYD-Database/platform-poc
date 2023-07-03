@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/gryd-database/platform-poc/pkg/storage"
 	"github.com/gryd-database/platform-poc/pkg/transaction"
 	"github.com/sirupsen/logrus"
@@ -27,7 +28,7 @@ type StorageService interface {
 
 type GRYDContract interface {
 	GetBalance(ctx context.Context) (*big.Int, error)
-	VerifyEvent(ctx context.Context, hashTx string) (bool, error)
+	VerifyEvent(ctx context.Context, hashTx string) (*storage.EventBuyStorage, error)
 }
 
 type StorageController struct {
@@ -42,7 +43,7 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&storageVo)
 	if err != nil {
 		c.logger.Info("invalid arguments in storageVo body")
-		WriteJson(w, storage.DTOStorage{}, http.StatusBadRequest)
+		WriteJson(w, "invalid arguments in body", http.StatusBadRequest)
 		return
 	}
 
@@ -50,7 +51,7 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 	if !(reInput.MatchString(storageVo.Wallet)) {
 		c.logger.Info("invalid wallet address:" + storageVo.Wallet)
 
-		WriteJson(w, storage.DTOStorage{}, http.StatusBadRequest)
+		WriteJson(w, "invalid wallet address", http.StatusBadRequest)
 		return
 	}
 
@@ -58,42 +59,42 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 	if !(reInput.MatchString(storageVo.TxHash)) {
 		c.logger.Info("invalid tx hash:" + storageVo.TxHash)
 
-		WriteJson(w, storage.DTOStorage{}, http.StatusBadRequest)
+		WriteJson(w, "invalid tx hash", http.StatusBadRequest)
 		return
 	}
 
-	verified, err := c.grydService.VerifyEvent(r.Context(), storageVo.TxHash)
+	event, err := c.grydService.VerifyEvent(r.Context(), storageVo.TxHash)
 	if err != nil {
 		if errors.Is(err, transaction.ErrEventNotFound) {
 			c.logger.Info("event not found for tx hash:" + storageVo.TxHash)
 
-			WriteJson(w, storage.DTOStorage{}, http.StatusNotFound)
+			WriteJson(w, "event not found", http.StatusNotFound)
 			return
 		}
 
 		if errors.Is(err, transaction.ErrNoTopic) {
 			c.logger.Info("topic not found for tx hash:" + storageVo.TxHash)
 
-			WriteJson(w, storage.DTOStorage{}, http.StatusNotFound)
+			WriteJson(w, "event cannot be processed", http.StatusNotFound)
 			return
 		}
 
 		if errors.Is(err, storage.ErrUnprocessableEvent) {
 			c.logger.Info("tx receipt or event does not exist for hash:" + storageVo.TxHash)
 
-			WriteJson(w, storage.DTOStorage{}, http.StatusNotFound)
+			WriteJson(w, "tx receipt or event does not exist for hash", http.StatusNotFound)
 			return
 		}
 
 		c.logger.Error("internal server error: ", err)
-		WriteJson(w, storage.DTOStorage{}, http.StatusInternalServerError)
+		WriteJson(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	if !verified {
+	if event.Buyer != common.HexToAddress(storageVo.Wallet) {
 		c.logger.Info("cannot verify event for tx: ", storageVo.TxHash)
 
-		WriteJson(w, storage.DTOStorage{}, http.StatusBadRequest)
+		WriteJson(w, "cannot verify event for tx", http.StatusBadRequest)
 		return
 	}
 
@@ -104,7 +105,7 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		c.logger.Error("internal server error: ", err)
 
-		WriteJson(w, storage.DTOStorage{}, http.StatusInternalServerError)
+		WriteJson(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
@@ -115,7 +116,7 @@ func (c *StorageController) GetBalance(w http.ResponseWriter, r *http.Request) {
 	balance, err := c.grydService.GetBalance(r.Context())
 	if err != nil {
 		c.logger.Error("internal server error: ", err)
-		WriteJson(w, storage.VoStorage{}, http.StatusInternalServerError)
+		WriteJson(w, "internal server error", http.StatusInternalServerError)
 		return
 	}
 
