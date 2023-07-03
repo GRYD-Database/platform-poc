@@ -29,7 +29,7 @@ type Events struct {
 	storageBoughtTopic common.Hash
 }
 
-type eventBuyStorage struct {
+type EventBuyStorage struct {
 	Buyer    common.Address
 	UserName string
 	Size     *big.Int
@@ -78,24 +78,24 @@ func (s *Contract) getBalance(ctx context.Context) (*big.Int, error) {
 	return abi.ConvertType(results[0], new(big.Int)).(*big.Int), nil
 }
 
-func (s *Contract) VerifyEvent(ctx context.Context, hashTx string) (bool, error) {
+func (s *Contract) VerifyEvent(ctx context.Context, hashTx string) (*EventBuyStorage, error) {
 	receipt, err := s.txService.WaitForReceipt(ctx, common.HexToHash(hashTx))
 	if err != nil {
-		return false, fmt.Errorf("error getting the receipt from tx hash: %s with error: %w", hashTx, err)
+		return nil, fmt.Errorf("error getting the receipt from tx hash: %s with error: %w", hashTx, err)
 	}
 
-	var event eventBuyStorage
+	var event EventBuyStorage
 
 	for _, ev := range receipt.Logs {
 		if ev.Address == s.grydContractAddress && len(ev.Topics) > 0 && ev.Topics[0] == s.Events.storageBoughtTopic {
 			err = transaction.ParseEvent(&s.grydContractABI, "StorageBought", &event, *ev)
 			if err != nil {
-				return false, fmt.Errorf("error parsing event of hash: %s with error: %w", hashTx, err)
+				return nil, fmt.Errorf("error parsing event of hash: %s with error: %w", hashTx, err)
 			}
 		} else {
-			return false, ErrUnprocessableEvent
+			return nil, ErrUnprocessableEvent
 		}
 	}
 
-	return true, nil
+	return &event, nil
 }
