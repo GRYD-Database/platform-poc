@@ -37,9 +37,8 @@ type Storage struct {
 	owner common.Address
 }
 
-func New(owner common.Address, cdb *pgxpool.Pool, logger *logrus.Logger, pool *pgxpool.Pool) *Storage {
+func New(owner common.Address, logger *logrus.Logger, pool *pgxpool.Pool) *Storage {
 	return &Storage{
-		cdb:    cdb,
 		logger: logger,
 		pg:     pool,
 		owner:  owner,

@@ -22,14 +22,12 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 
-	"github.com/gryd-database/platform-poc/pkg/cdb"
 	"github.com/gryd-database/platform-poc/pkg/logger"
 )
 
 type Container struct {
 	config            *configuration.Config
 	logger            *logrus.Logger
-	cdb               *pgxpool.Pool
 	router            *chi.Mux
 	pg                *pgxpool.Pool
 	storageController *StorageController
@@ -61,7 +59,6 @@ func Init() error {
 		container.logger,
 		storage.New(
 			container.ethAddress,
-			container.cdb,
 			container.logger,
 			container.pg), grydContract)
 
@@ -87,11 +84,6 @@ func NewContainer() (*Container, error) {
 		return nil, fmt.Errorf("error bootstrapping logger: %w", err)
 	}
 
-	cdbInstance, err := cdb.Init(confInstance)
-	if err != nil {
-		return nil, fmt.Errorf("error bootstrapping cockroachdb: %w", err)
-	}
-
 	pgInstance, err := pg.InitPool(confInstance)
 	if err != nil {
 		return nil, fmt.Errorf("error bootstrapping pg: %w", err)
@@ -100,7 +92,6 @@ func NewContainer() (*Container, error) {
 	return &Container{
 		config: confInstance,
 		logger: loggerInstance,
-		cdb:    cdbInstance,
 		pg:     pgInstance,
 	}, nil
 }
