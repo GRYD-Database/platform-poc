@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/gryd-database/platform-poc/configuration"
 	"github.com/gryd-database/platform-poc/pkg/node"
+	"github.com/gryd-database/platform-poc/pkg/odb"
 	"github.com/gryd-database/platform-poc/pkg/pg"
 	"github.com/gryd-database/platform-poc/pkg/storage"
 	"github.com/gryd-database/platform-poc/pkg/transaction"
@@ -33,6 +34,7 @@ type Container struct {
 	storageController *StorageController
 	ethAddress        common.Address
 	txService         *transaction.TxService
+	odb               *odb.Database
 
 	rpcClient     *rpc.Client
 	grydSemaphore *semaphore.Weighted
@@ -60,7 +62,8 @@ func Init() error {
 		storage.New(
 			container.ethAddress,
 			container.logger,
-			container.pg), grydContract)
+			container.pg, container.odb.Store, container.odb.Ledger),
+		grydContract)
 
 	container.router = chi.NewRouter()
 	container.cors()
@@ -89,10 +92,16 @@ func NewContainer() (*Container, error) {
 		return nil, fmt.Errorf("error bootstrapping pg: %w", err)
 	}
 
+	odb, err := odb.NewDatabase(context.Background(), confInstance.IPFS.Address, loggerInstance)
+	if err != nil {
+		return nil, fmt.Errorf("unable to bootstrap odb: %w", err)
+	}
+
 	return &Container{
 		config: confInstance,
 		logger: loggerInstance,
 		pg:     pgInstance,
+		odb:    odb,
 	}, nil
 }
 
@@ -100,6 +109,7 @@ func (c *Container) routes() {
 	c.router.Route("/storage", func(r chi.Router) {
 		c.grydAccessHandler()
 		r.Post("/create", c.storageController.Create)
+		r.Get("/get/{id}", c.storageController.GetRecordByID)
 	})
 
 	c.router.Route("/balance", func(r chi.Router) {

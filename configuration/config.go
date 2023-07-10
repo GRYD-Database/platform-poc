@@ -17,6 +17,7 @@ type Config struct {
 		RepoPath   string `mapstructure:"REPOPATH"`
 		IsLocal    bool   `mapstructure:"ISLOCAL"`
 		CreateRepo bool   `mapstructure:"CREATEREPO"`
+		Address    string `mapstructure:"ADDRESS"`
 	} `mapstructure:"IPFS"`
 	Logger struct {
 		LogLevel string `mapstructure:"LOG_LEVEL"`

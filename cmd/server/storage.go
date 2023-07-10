@@ -2,13 +2,16 @@ package server
 
 import (
 	"context"
-	"encoding/json"
+	"encoding/csv"
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/go-chi/chi"
+	"github.com/google/uuid"
 	"github.com/gryd-database/platform-poc/pkg/storage"
 	"github.com/gryd-database/platform-poc/pkg/transaction"
 	"github.com/sirupsen/logrus"
 	"math/big"
+	"mime/multipart"
 	"net/http"
 	"regexp"
 )
@@ -17,13 +20,20 @@ func New(logger *logrus.Logger, service *storage.Storage, grydContract *storage.
 	return &StorageController{
 		logger:         logger,
 		storageService: service,
+		odbService:     service,
 		grydService:    grydContract,
 	}
 }
 
 type StorageService interface {
 	Create(ctx context.Context, voStorage *storage.VoStorage) (*storage.DTOStorage, error)
-	AssignStorage() (string, error)
+}
+
+type OrbitService interface {
+	AddRecord(ctx context.Context, storage *[]storage.InputData) error
+	Ledger(ctx context.Context, wallet, datasetKey string) error
+	GetWalletByDatasetKey(ctx context.Context, key string) (*storage.Ledger, error)
+	GetRecordByID(ctx context.Context, id string) (*storage.InputData, error)
 }
 
 type GRYDContract interface {
@@ -35,16 +45,50 @@ type StorageController struct {
 	logger         *logrus.Logger
 	storageService StorageService
 	grydService    GRYDContract
+	odbService     OrbitService
 }
 
 func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
-	storageVo := storage.VoStorage{}
+	file, _, err := r.FormFile("file")
 
-	err := json.NewDecoder(r.Body).Decode(&storageVo)
+	storageVo := storage.VoStorage{
+		Wallet: r.FormValue("wallet"),
+		TxHash: r.FormValue("txHash"),
+	}
+
+	var inputDataObject []storage.InputData
+
+	defer func(file multipart.File) {
+		err := file.Close()
+		if err != nil {
+			c.logger.Info("unable to parse form data: ", err)
+
+			WriteJson(w, "unable to parse form data", http.StatusInternalServerError)
+			return
+		}
+	}(file)
+
+	reader := csv.NewReader(file)
+	record, err := reader.ReadAll()
 	if err != nil {
-		c.logger.Info("invalid arguments in storageVo body")
-		WriteJson(w, "invalid arguments in body", http.StatusBadRequest)
+		c.logger.Info("unable to parse form data: ", err)
+
+		WriteJson(w, "unable to parse form data", http.StatusInternalServerError)
 		return
+	}
+
+	datasetKey := uuid.NewString()
+
+	for _, line := range record {
+		inputData := storage.InputData{
+			ID:         uuid.NewString(),
+			Date:       line[1],
+			DataType:   line[2],
+			Data:       line[3],
+			Dataset:    line[0],
+			DatasetKey: datasetKey,
+		}
+		inputDataObject = append(inputDataObject, inputData)
 	}
 
 	reInput := regexp.MustCompile("^0x[0-9a-fA-F]{40}$")
@@ -98,8 +142,21 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	dsn, _ := c.storageService.AssignStorage()
-	println(dsn)
+	err = c.odbService.AddRecord(r.Context(), &inputDataObject)
+	if err != nil {
+		c.logger.Error("internal server error: ", err)
+
+		WriteJson(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	err = c.odbService.Ledger(r.Context(), storageVo.Wallet, datasetKey)
+	if err != nil {
+		c.logger.Error("internal server error: ", err)
+
+		WriteJson(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 
 	resp, err := c.storageService.Create(r.Context(), &storageVo)
 	if err != nil {
@@ -121,4 +178,22 @@ func (c *StorageController) GetBalance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	WriteJson(w, balance, http.StatusOK)
+}
+
+func (c *StorageController) GetRecordByID(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	if len(id) == 0 {
+		c.logger.Error("id is missing in path params")
+		WriteJson(w, "id is missing in path params", http.StatusBadRequest)
+		return
+	}
+
+	record, err := c.odbService.GetRecordByID(r.Context(), id)
+	if err != nil {
+		c.logger.Error("internal server error: ", err)
+		WriteJson(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	WriteJson(w, record, http.StatusOK)
 }

@@ -2,14 +2,17 @@ package odb
 
 import (
 	"context"
+	"fmt"
 	"github.com/ipfs/go-libipfs/files"
 	icore "github.com/ipfs/interface-go-ipfs-core"
 	"github.com/ipfs/kubo/core"
 	"github.com/ipfs/kubo/core/coreapi"
 	"github.com/ipfs/kubo/core/node/libp2p"
+	"github.com/ipfs/kubo/plugin/loader"
 	"github.com/ipfs/kubo/repo/fsrepo"
 	"github.com/mitchellh/mapstructure"
 	"os"
+	"path/filepath"
 )
 
 func createNode(ctx context.Context, repoPath string) (*core.IpfsNode, icore.CoreAPI, error) {
@@ -63,4 +66,21 @@ func structToMap(v interface{}) (map[string]interface{}, error) {
 	}
 
 	return *vMap, nil
+}
+
+func setupPlugins(path string) error {
+	plugins, err := loader.NewPluginLoader(filepath.Join(path, "plugins"))
+	if err != nil {
+		return fmt.Errorf("error loading plugins: %s", err)
+	}
+
+	if err := plugins.Initialize(); err != nil {
+		return fmt.Errorf("error initializing plugins: %s", err)
+	}
+
+	if err := plugins.Inject(); err != nil {
+		return fmt.Errorf("error initializing plugins: %s", err)
+	}
+
+	return nil
 }

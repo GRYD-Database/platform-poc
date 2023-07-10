@@ -3,15 +3,36 @@ package storage
 import (
 	"context"
 	"fmt"
+	sq "github.com/Masterminds/squirrel"
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v4"
+	"github.com/mitchellh/mapstructure"
 	"github.com/pkg/errors"
+	"time"
 )
+
+//nolint:golint,gochecknoglobals,varnamelen
+var QB = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
+
+// VoStorage struct contains Wallet and TxHash where Wallet is the address and TxHash is the transaction that was sent over network
+type VoStorage struct {
+	Wallet string `json:"wallet"`
+	TxHash string `json:"txHash"`
+}
+
+type DTOStorage struct {
+	ID        uuid.UUID `json:"id"`
+	Wallet    string    `json:"wallet"`
+	TxHash    string    `json:"txHash"`
+	CreatedAt time.Time `json:"createdAt"`
+}
 
 func (s *Storage) Create(ctx context.Context, voStorage *VoStorage) (*DTOStorage, error) {
 	resp, err := s.create(ctx, voStorage)
 	if err != nil {
 		return resp, fmt.Errorf("unable to store tx info in db: %w", err)
 	}
+
 	return resp, nil
 }
 
@@ -44,4 +65,15 @@ func (s *Storage) create(ctx context.Context, voStorage *VoStorage) (*DTOStorage
 	}
 
 	return &dtoStorage, nil
+}
+
+func structToMap(v interface{}) (map[string]interface{}, error) {
+	vMap := &map[string]interface{}{}
+
+	err := mapstructure.Decode(v, &vMap)
+	if err != nil {
+		return nil, err
+	}
+
+	return *vMap, nil
 }
