@@ -14,14 +14,22 @@ import (
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/sirupsen/logrus"
 	"go.uber.org/zap"
+	"strings"
 	"time"
 )
+
+const replicate = true
+const create = true
 
 type Database struct {
 	ctx              context.Context
 	ConnectionString string
 	URI              string
 	CachePath        string
+	isLocal          bool
+	isReplicated     bool
+	createRepo       bool
+	repoPath         string
 
 	Logger *logrus.Logger
 
@@ -31,12 +39,17 @@ type Database struct {
 	OrbitDB orbitdb.OrbitDB
 	Store   orbitdb.DocumentStore
 	Ledger  orbitdb.DocumentStore
-	Events  event.Subscription
+
+	Events event.Subscription
 }
 
 func NewDatabase(
 	ctx context.Context,
-	dbConnectionString string,
+	dbConnectionString,
+	repoPath string,
+	isLocal,
+	createRepo,
+	isReplicated bool,
 	logger *logrus.Logger,
 ) (*Database, error) {
 	var err error
@@ -45,41 +58,49 @@ func NewDatabase(
 	db.ctx = ctx
 	db.ConnectionString = dbConnectionString
 	db.Logger = logger
+	db.isLocal = isLocal
+	db.repoPath = repoPath
+	db.isReplicated = isReplicated
+	db.createRepo = createRepo
 
-	db.Logger.Debug("getting config root path ...")
-	defaultPath, err := config.PathRoot()
-	if err != nil {
-		return nil, err
+	if len(strings.TrimSpace(db.repoPath)) == 0 {
+		db.Logger.Debug("getting config root path ...")
+		db.repoPath, err = config.PathRoot()
+		if err != nil {
+			logger.Error("getting config root path ...", err)
+			return nil, err
+		}
 	}
 
 	db.Logger.Debug("setting up plugins ...")
-	if err := setupPlugins(defaultPath); err != nil {
+	if err := setupPlugins(db.repoPath); err != nil {
+		logger.Error("setting up plugins ...", err)
 		return nil, err
 	}
 
 	db.Logger.Debug("creating IPFS node ...")
-	db.IPFSNode, db.IPFSCoreAPI, err = createNode(ctx, defaultPath)
+	db.IPFSNode, db.IPFSCoreAPI, err = createNode(ctx, db.repoPath)
 	if err != nil {
+		logger.Error("creating IPFS node ...", err)
 		return nil, err
 	}
+
 	err = db.OrbitBootstrapper()
 	if err != nil {
+		logger.Error("err bootstrapping ODB ...", err)
 		return nil, err
 	}
+
+	logger.Info("successfully bootstrapped ODB and IPFS")
+
 	return db, nil
 }
 
 func (d *Database) OrbitBootstrapper() error {
-	ac := &accesscontroller.CreateAccessControllerOptions{
-		Access: map[string][]string{
-			"write": {
-				"*",
-			},
-			"read": {
-				"*",
-			},
-		},
-	}
+	ac := accesscontroller.NewEmptyManifestParams()
+
+	ac.SetAccess("write", []string{"*"})
+	ac.SetAccess("read", []string{"*"})
 
 	odb, err := orbitdb.NewOrbitDB(d.ctx, d.IPFSCoreAPI, nil)
 	if err != nil {
@@ -93,9 +114,12 @@ func (d *Database) OrbitBootstrapper() error {
 
 	d.Store, err = d.OrbitDB.Docs(d.ctx, d.ConnectionString, &orbitdb.CreateDBOptions{
 		AccessController:  ac,
+		LocalOnly:         &d.isLocal,
 		StoreType:         &storetype,
 		StoreSpecificOpts: documentstore.DefaultStoreOptsForMap("id"),
 		Timeout:           time.Second * 600,
+		Replicate:         &d.isReplicated,
+		Create:            &d.createRepo,
 	})
 	if err != nil {
 		return err

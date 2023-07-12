@@ -12,12 +12,12 @@ import (
 )
 
 type InputData struct {
-	DatasetKey string `mapstructure:"datasetKey" json:"-"`
-	ID         string `mapstructure:"id" json:"-"`
-	Dataset    string `mapstructure:"dataset" json:"-"`
-	Date       string `mapstructure:"date" json:"-"`
-	DataType   string `mapstructure:"dataType" json:"-"`
-	Data       string `mapstructure:"data" json:"-"`
+	DatasetKey string `mapstructure:"datasetKey" json:"datasetKey"`
+	ID         string `mapstructure:"id" json:"id"`
+	Dataset    string `mapstructure:"dataset" json:"dataset"`
+	Date       string `mapstructure:"date" json:"date"`
+	DataType   string `mapstructure:"dataType" json:"dataType"`
+	Data       string `mapstructure:"data" json:"data"`
 }
 
 // Ledger holds the dataset key and the wallet that inserted the data
@@ -66,11 +66,13 @@ func (s *Storage) AddRecord(ctx context.Context, storage *[]InputData) error {
 	for _, row := range *storage {
 		entity, err := structToMap(row)
 		if err != nil {
+			s.logger.Error("failed to encode struct into map: ", err)
 			return err
 		}
 
 		_, err = s.odbStore.Put(ctx, entity)
 		if err != nil {
+			s.logger.Error("failed to add data into odb: ", err)
 			return err
 		}
 	}
@@ -85,9 +87,12 @@ func (s *Storage) GetRecordByID(ctx context.Context, id string) (*InputData, err
 	}
 
 	var data InputData
-	err = mapstructure.Decode(record[0], &data)
-	if err != nil {
-		return nil, err
+	for _, row := range record {
+		err = mapstructure.Decode(row, &data)
+		if err != nil {
+			s.logger.Error("failed to decode map into struct: ", err)
+			return nil, err
+		}
 	}
 
 	return &data, nil
@@ -99,26 +104,25 @@ func (s *Storage) GetWalletByDatasetKey(ctx context.Context, key string) (*Ledge
 		return nil, err
 	}
 
-	var ledger Ledger
-	err = mapstructure.Decode(record[0], &ledger)
-	if err != nil {
-		return nil, err
+	var data Ledger
+	for _, row := range record {
+		err = mapstructure.Decode(row, &data)
+		if err != nil {
+			s.logger.Error("failed to decode map into struct: ", err)
+			return nil, err
+		}
 	}
 
-	return &ledger, nil
+	return &data, nil
 }
 
-func (s *Storage) GetAllRecords(ctx context.Context, key string) (*Ledger, error) {
-	record, err := s.ledger.Get(ctx, key, &iface.DocumentStoreGetOptions{CaseInsensitive: false})
+func structToMap(v interface{}) (map[string]interface{}, error) {
+	vMap := &map[string]interface{}{}
+
+	err := mapstructure.Decode(v, &vMap)
 	if err != nil {
 		return nil, err
 	}
 
-	var ledger Ledger
-	err = mapstructure.Decode(record[0], &ledger)
-	if err != nil {
-		return nil, err
-	}
-
-	return &ledger, nil
+	return *vMap, nil
 }

@@ -50,6 +50,7 @@ func Init() error {
 
 	GRYDContractAddress, GRYDContractABI, err := setContracts(container.config.GRYDContract.Address, container.config.GRYDContract.ABI)
 	if err != nil {
+		container.logger.Error("failed to parse contract abi, ", err)
 		return fmt.Errorf("err loading gryd contract: %w", err)
 	}
 
@@ -89,11 +90,21 @@ func NewContainer() (*Container, error) {
 
 	pgInstance, err := pg.InitPool(confInstance)
 	if err != nil {
+		loggerInstance.Error("failed to initialize pg instance: ", err)
 		return nil, fmt.Errorf("error bootstrapping pg: %w", err)
 	}
 
-	odb, err := odb.NewDatabase(context.Background(), confInstance.IPFS.Address, loggerInstance)
+	odb, err := odb.NewDatabase(
+		context.Background(),
+		confInstance.IPFS.Address,
+		confInstance.IPFS.RepoPath,
+		confInstance.IPFS.IsLocal,
+		confInstance.IPFS.CreateRepo,
+		confInstance.IPFS.IsReplicated,
+		loggerInstance,
+	)
 	if err != nil {
+		loggerInstance.Error("failed to initialize odb/ipfs instance: ", err)
 		return nil, fmt.Errorf("unable to bootstrap odb: %w", err)
 	}
 

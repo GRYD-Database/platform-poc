@@ -11,7 +11,6 @@ import (
 	"github.com/gryd-database/platform-poc/pkg/transaction"
 	"github.com/sirupsen/logrus"
 	"math/big"
-	"mime/multipart"
 	"net/http"
 	"regexp"
 )
@@ -50,23 +49,14 @@ type StorageController struct {
 
 func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 	file, _, err := r.FormFile("file")
+	if err != nil {
+		c.logger.Info("unable to parse form data: ", err)
 
-	storageVo := storage.VoStorage{
-		Wallet: r.FormValue("wallet"),
-		TxHash: r.FormValue("txHash"),
+		WriteJson(w, "unable to parse form data", http.StatusInternalServerError)
+		return
 	}
 
 	var inputDataObject []storage.InputData
-
-	defer func(file multipart.File) {
-		err := file.Close()
-		if err != nil {
-			c.logger.Info("unable to parse form data: ", err)
-
-			WriteJson(w, "unable to parse form data", http.StatusInternalServerError)
-			return
-		}
-	}(file)
 
 	reader := csv.NewReader(file)
 	record, err := reader.ReadAll()
@@ -78,6 +68,12 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	datasetKey := uuid.NewString()
+
+	storageVo := storage.VoStorage{
+		Wallet:     r.FormValue("wallet"),
+		TxHash:     r.FormValue("txHash"),
+		DatasetKey: datasetKey,
+	}
 
 	for _, line := range record {
 		inputData := storage.InputData{
@@ -197,3 +193,6 @@ func (c *StorageController) GetRecordByID(w http.ResponseWriter, r *http.Request
 
 	WriteJson(w, record, http.StatusOK)
 }
+
+// 1553bd83-f1cf-47f4-9a22-1f7251f4dfcd
+// 3b3ae135-a364-462d-8f8f-65ccdb730600

@@ -14,10 +14,11 @@ type Config struct {
 		DBUsername string `mapstructure:"DB_USERNAME"`
 	} `mapstructure:"PG"`
 	IPFS struct {
-		RepoPath   string `mapstructure:"REPOPATH"`
-		IsLocal    bool   `mapstructure:"ISLOCAL"`
-		CreateRepo bool   `mapstructure:"CREATEREPO"`
-		Address    string `mapstructure:"ADDRESS"`
+		RepoPath     string `mapstructure:"REPOPATH"`
+		IsLocal      bool   `mapstructure:"ISLOCAL"`
+		CreateRepo   bool   `mapstructure:"CREATEREPO"`
+		IsReplicated bool   `mapstructure:"ISREPLICATED"`
+		Address      string `mapstructure:"ADDRESS"`
 	} `mapstructure:"IPFS"`
 	Logger struct {
 		LogLevel string `mapstructure:"LOG_LEVEL"`
