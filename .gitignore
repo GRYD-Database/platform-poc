@@ -11,3 +11,5 @@ configuration/*
 /pkg/domain/
 /migrations/tern.conf
 env.json
+cache
+.~lock.sampleData.csv#

@@ -11,6 +11,7 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/gryd-database/platform-poc/configuration"
 	"github.com/gryd-database/platform-poc/pkg/node"
+	"github.com/gryd-database/platform-poc/pkg/odb"
 	"github.com/gryd-database/platform-poc/pkg/pg"
 	"github.com/gryd-database/platform-poc/pkg/storage"
 	"github.com/gryd-database/platform-poc/pkg/transaction"
@@ -22,19 +23,18 @@ import (
 	"github.com/jackc/pgx/v4/pgxpool"
 	"github.com/sirupsen/logrus"
 
-	"github.com/gryd-database/platform-poc/pkg/cdb"
 	"github.com/gryd-database/platform-poc/pkg/logger"
 )
 
 type Container struct {
 	config            *configuration.Config
 	logger            *logrus.Logger
-	cdb               *pgxpool.Pool
 	router            *chi.Mux
 	pg                *pgxpool.Pool
 	storageController *StorageController
 	ethAddress        common.Address
 	txService         *transaction.TxService
+	odb               *odb.Database
 
 	rpcClient     *rpc.Client
 	grydSemaphore *semaphore.Weighted
@@ -50,6 +50,7 @@ func Init() error {
 
 	GRYDContractAddress, GRYDContractABI, err := setContracts(container.config.GRYDContract.Address, container.config.GRYDContract.ABI)
 	if err != nil {
+		container.logger.Error("failed to parse contract abi, ", err)
 		return fmt.Errorf("err loading gryd contract: %w", err)
 	}
 
@@ -61,9 +62,9 @@ func Init() error {
 		container.logger,
 		storage.New(
 			container.ethAddress,
-			container.cdb,
 			container.logger,
-			container.pg), grydContract)
+			container.pg, container.odb.Store, container.odb.Ledger),
+		grydContract)
 
 	container.router = chi.NewRouter()
 	container.cors()
@@ -87,21 +88,31 @@ func NewContainer() (*Container, error) {
 		return nil, fmt.Errorf("error bootstrapping logger: %w", err)
 	}
 
-	cdbInstance, err := cdb.Init(confInstance)
-	if err != nil {
-		return nil, fmt.Errorf("error bootstrapping cockroachdb: %w", err)
-	}
-
 	pgInstance, err := pg.InitPool(confInstance)
 	if err != nil {
+		loggerInstance.Error("failed to initialize pg instance: ", err)
 		return nil, fmt.Errorf("error bootstrapping pg: %w", err)
+	}
+
+	odb, err := odb.NewDatabase(
+		context.Background(),
+		confInstance.IPFS.Address,
+		confInstance.IPFS.RepoPath,
+		confInstance.IPFS.IsLocal,
+		confInstance.IPFS.CreateRepo,
+		confInstance.IPFS.IsReplicated,
+		loggerInstance,
+	)
+	if err != nil {
+		loggerInstance.Error("failed to initialize odb/ipfs instance: ", err)
+		return nil, fmt.Errorf("unable to bootstrap odb: %w", err)
 	}
 
 	return &Container{
 		config: confInstance,
 		logger: loggerInstance,
-		cdb:    cdbInstance,
 		pg:     pgInstance,
+		odb:    odb,
 	}, nil
 }
 
@@ -109,6 +120,7 @@ func (c *Container) routes() {
 	c.router.Route("/storage", func(r chi.Router) {
 		c.grydAccessHandler()
 		r.Post("/create", c.storageController.Create)
+		r.Get("/get/{id}", c.storageController.GetRecordByID)
 	})
 
 	c.router.Route("/balance", func(r chi.Router) {

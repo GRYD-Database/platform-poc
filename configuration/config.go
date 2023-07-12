@@ -13,14 +13,13 @@ type Config struct {
 		DBName     string `mapstructure:"DB_NAME"`
 		DBUsername string `mapstructure:"DB_USERNAME"`
 	} `mapstructure:"PG"`
-	CockroachDB struct {
-		User     string `mapstructure:"CRDB_USER"`
-		Password string `mapstructure:"CRDB_PASSWORD"`
-		Port     string `mapstructure:"CRDB_PORT"`
-		DBName   string `mapstructure:"CRDB_DB"`
-		Server   string `mapstructure:"CRDB_SERVER"`
-		SSLMode  string `mapstructure:"CRDB_SSLMODE"`
-	} `mapstructure:"CDB"`
+	IPFS struct {
+		RepoPath     string `mapstructure:"REPOPATH"`
+		IsLocal      bool   `mapstructure:"ISLOCAL"`
+		CreateRepo   bool   `mapstructure:"CREATEREPO"`
+		IsReplicated bool   `mapstructure:"ISREPLICATED"`
+		Address      string `mapstructure:"ADDRESS"`
+	} `mapstructure:"IPFS"`
 	Logger struct {
 		LogLevel string `mapstructure:"LOG_LEVEL"`
 		LogEnv   string `mapstructure:"LOG_ENV"`
