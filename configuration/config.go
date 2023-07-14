@@ -42,7 +42,7 @@ func Init() (*Config, error) {
 	viper.AddConfigPath(".")
 	viper.SetConfigName("env.json")
 	viper.SetConfigType("json")
-
+	viper.AddConfigPath("../../")
 	viper.AutomaticEnv()
 
 	err := viper.ReadInConfig()
