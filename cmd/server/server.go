@@ -33,7 +33,7 @@ type Container struct {
 	pg                *pgxpool.Pool
 	storageController *StorageController
 	ethAddress        common.Address
-	txService         *transaction.TxService
+	txService         *transaction.Service
 	odb               *odb.Database
 
 	rpcClient     *rpc.Client

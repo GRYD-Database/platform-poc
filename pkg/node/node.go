@@ -15,14 +15,16 @@ func InitChain(
 	ctx context.Context,
 	logger *logrus.Logger,
 	endpoint string,
-	hexKey string) (*rpc.Client, common.Address, *transaction.TxService, error) {
+	hexKey string) (*rpc.Client, common.Address, *transaction.Service, error) {
 
 	rpcClient, err := rpc.DialContext(ctx, endpoint)
 	if err != nil {
 		logger.Error("unable to dial eth client: ", err)
 		return nil, common.Address{}, nil, fmt.Errorf("unable to dial eth client: %w", err)
 	}
+
 	var versionString string
+
 	err = rpcClient.CallContext(ctx, &versionString, "web3_clientVersion")
 	if err != nil {
 		logger.Info("could not connect to backend, requires a working blockchain note, please check your endpoint: endpoint=", endpoint, "\n error: ", err)
@@ -41,15 +43,12 @@ func InitChain(
 		return nil, common.Address{}, nil, err
 	}
 
-	ethAddress, err := signer.EthereumAddress()
-	if err != nil {
-		return nil, common.Address{}, nil, fmt.Errorf("error getting eth address: %w", err)
-	}
+	ethAddress := signer.EthereumAddress()
 
 	txService, err := transaction.NewTxService(rpcClient, logger, *backend, signer, chainID, ethAddress)
 	if err != nil {
 		return nil, common.Address{}, nil, fmt.Errorf("error bootstrapping transaction service: %w", err)
 	}
 
-	return rpcClient, ethAddress, txService, nil
+	return rpcClient, ethAddress, &txService, nil
 }

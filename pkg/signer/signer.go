@@ -9,7 +9,7 @@ import (
 
 type Signer interface {
 	// EthereumAddress returns the ethereum address this signer uses.
-	EthereumAddress() (common.Address, error)
+	EthereumAddress() common.Address
 }
 
 type defaultSigner struct {
@@ -17,8 +17,8 @@ type defaultSigner struct {
 	publicKey  *ecdsa.PublicKey
 }
 
-func (d *defaultSigner) EthereumAddress() (common.Address, error) {
-	return crypto.PubkeyToAddress(*d.publicKey), nil
+func (d *defaultSigner) EthereumAddress() common.Address {
+	return crypto.PubkeyToAddress(*d.publicKey)
 }
 
 func New(hexKey string) (Signer, error) {

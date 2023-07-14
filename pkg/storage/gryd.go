@@ -16,7 +16,7 @@ var (
 )
 
 type Contract struct {
-	txService           *transaction.TxService
+	txService           transaction.Service
 	grydContractAddress common.Address
 	grydContractABI     abi.ABI
 	owner               common.Address
@@ -26,7 +26,7 @@ type Contract struct {
 }
 
 type Events struct {
-	storageBoughtTopic common.Hash
+	StorageBoughtTopic common.Hash
 }
 
 type EventBuyStorage struct {
@@ -35,24 +35,20 @@ type EventBuyStorage struct {
 	Size     *big.Int
 }
 
-func NewContract(txService *transaction.TxService, owner common.Address, logger *logrus.Logger, grydAddress common.Address, grydABI abi.ABI) *Contract {
+func NewContract(txService *transaction.Service, owner common.Address, logger *logrus.Logger, grydAddress common.Address, grydABI abi.ABI) *Contract {
 	return &Contract{
-		txService:           txService,
+		txService:           *txService,
 		grydContractAddress: grydAddress,
 		grydContractABI:     grydABI,
 		owner:               owner,
 		Events: Events{
-			storageBoughtTopic: grydABI.Events["StorageBought"].ID,
+			StorageBoughtTopic: grydABI.Events["StorageBought"].ID,
 		},
 		logger: logger,
 	}
 }
 
 func (s *Contract) GetBalance(ctx context.Context) (*big.Int, error) {
-	return s.getBalance(ctx)
-}
-
-func (s *Contract) getBalance(ctx context.Context) (*big.Int, error) {
 	callData, err := s.grydContractABI.Pack("balanceOf", s.owner)
 	if err != nil {
 		return nil, fmt.Errorf("unable to pack callData: %w", err)
@@ -87,7 +83,7 @@ func (s *Contract) VerifyEvent(ctx context.Context, hashTx string) (*EventBuySto
 	var event EventBuyStorage
 
 	for _, ev := range receipt.Logs {
-		if ev.Address == s.grydContractAddress && len(ev.Topics) > 0 && ev.Topics[0] == s.Events.storageBoughtTopic {
+		if ev.Address == s.grydContractAddress && len(ev.Topics) > 0 && ev.Topics[0] == s.Events.StorageBoughtTopic {
 			err = transaction.ParseEvent(&s.grydContractABI, "StorageBought", &event, *ev)
 			if err != nil {
 				return nil, fmt.Errorf("error parsing event of hash: %s with error: %w", hashTx, err)
