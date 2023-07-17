@@ -2,7 +2,6 @@ package storageMock
 
 import (
 	"context"
-	"github.com/gryd-database/platform-poc/cmd/server"
 	"github.com/gryd-database/platform-poc/pkg/storage"
 )
 
@@ -33,7 +32,7 @@ func (s *storageMock) GetRecordByID(ctx context.Context, id string) (*storage.In
 type Option func(mock *storageMock)
 
 // New creates a new mock
-func New(opts ...Option) server.OrbitService {
+func New(opts ...Option) storage.OrbitService {
 	bs := &storageMock{}
 
 	for _, o := range opts {

@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-type StorageService interface {
+type DBService interface {
 	Create(ctx context.Context, voStorage *VoStorage) (*DTOStorage, error)
 }
 

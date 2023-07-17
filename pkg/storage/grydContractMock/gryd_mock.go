@@ -2,7 +2,6 @@ package grydContractMock
 
 import (
 	"context"
-	"github.com/gryd-database/platform-poc/cmd/server"
 	"github.com/gryd-database/platform-poc/pkg/storage"
 	"math/big"
 )
@@ -24,7 +23,7 @@ func (g *grydContractMock) GetBalance(ctx context.Context) (*big.Int, error) {
 type Option func(mock *grydContractMock)
 
 // New creates a new mock
-func New(opts ...Option) server.GRYDContract {
+func New(opts ...Option) storage.GRYDContract {
 	bs := &grydContractMock{}
 
 	for _, o := range opts {

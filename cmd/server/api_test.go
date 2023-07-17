@@ -6,22 +6,25 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/gryd-database/platform-poc/configuration"
 	"github.com/gryd-database/platform-poc/pkg/storage/dbMock"
+	"github.com/gryd-database/platform-poc/pkg/storage/grydContractMock"
 	"github.com/gryd-database/platform-poc/pkg/storage/storageMock"
 	"github.com/gryd-database/platform-poc/pkg/transaction/txMock"
 	"github.com/sirupsen/logrus"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 )
 
 type testServerOptions struct {
-	config            *configuration.Config
-	logger            *logrus.Logger
-	router            *chi.Mux
-	storageController *StorageController
-	ethAddress        common.Address
-	txServiceOpts     []txMock.Option
-	dbServiceOpts     []dbMock.Option
-	odbServiceOpts    []storageMock.Option
+	config                  *configuration.Config
+	logger                  *logrus.Logger
+	router                  *chi.Mux
+	storageController       *StorageController
+	ethAddress              common.Address
+	txServiceOpts           []txMock.Option
+	dbServiceOpts           []dbMock.Option
+	odbServiceOpts          []storageMock.Option
+	grydContractServiceOpts []grydContractMock.Option
 }
 
 type extraOpts struct {
@@ -29,12 +32,20 @@ type extraOpts struct {
 
 func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.Conn, string) {
 	t.Helper()
-	//
-	//transaction := txMock.New(o.txServiceOpts...)
-	//
-	//dbService := dbMock.New(o.dbServiceOpts...)
-	//
-	//storageService := storageMock.New(o.odbServiceOpts...)
 
-	return nil, nil, ""
+	transaction := txMock.New(o.txServiceOpts...)
+
+	dbService := dbMock.New(o.dbServiceOpts...)
+
+	storageService := storageMock.New(o.odbServiceOpts...)
+
+	contractService := grydContractMock.New(o.grydContractServiceOpts...)
+
+	storageController := New(logrus.New(), storageService, dbService, contractService)
+
+	s := ContainerBootstrapper(nil, o.ethAddress, &transaction, nil, storageController)
+
+	server := httptest.NewServer(s)
+
+	return server.Client(), nil, ""
 }

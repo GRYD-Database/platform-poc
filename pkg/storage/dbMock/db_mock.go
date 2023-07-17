@@ -2,7 +2,6 @@ package dbMock
 
 import (
 	"context"
-	"github.com/gryd-database/platform-poc/cmd/server"
 	"github.com/gryd-database/platform-poc/pkg/storage"
 )
 
@@ -17,7 +16,7 @@ func (s *dbMock) Create(ctx context.Context, voStorage *storage.VoStorage) (*sto
 type Option func(mock *dbMock)
 
 // New creates a new mock
-func New(opts ...Option) server.DBService {
+func New(opts ...Option) storage.DBService {
 	bs := &dbMock{}
 
 	for _, o := range opts {

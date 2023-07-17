@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/csv"
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
@@ -10,42 +9,25 @@ import (
 	"github.com/gryd-database/platform-poc/pkg/storage"
 	"github.com/gryd-database/platform-poc/pkg/transaction"
 	"github.com/sirupsen/logrus"
-	"math/big"
 	"net/http"
 	"regexp"
 	"strings"
 )
 
-func New(logger *logrus.Logger, service *storage.Storage, grydContract *storage.Contract) *StorageController {
+func New(logger *logrus.Logger, storage storage.OrbitService, dbService storage.DBService, grydContract storage.GRYDContract) *StorageController {
 	return &StorageController{
-		logger:         logger,
-		storageService: service,
-		odbService:     service,
-		grydService:    grydContract,
+		logger:      logger,
+		odbService:  storage,
+		dbService:   dbService,
+		grydService: grydContract,
 	}
 }
 
-type DBService interface {
-	Create(ctx context.Context, voStorage *storage.VoStorage) (*storage.DTOStorage, error)
-}
-
-type OrbitService interface {
-	AddRecord(ctx context.Context, storage *[]storage.InputData) error
-	Ledger(ctx context.Context, wallet, datasetKey string) error
-	GetWalletByDatasetKey(ctx context.Context, key string) (*storage.Ledger, error)
-	GetRecordByID(ctx context.Context, id string) (*storage.InputData, error)
-}
-
-type GRYDContract interface {
-	GetBalance(ctx context.Context) (*big.Int, error)
-	VerifyEvent(ctx context.Context, hashTx string) (*storage.EventInsertDataSuccess, error)
-}
-
 type StorageController struct {
-	logger         *logrus.Logger
-	storageService DBService
-	grydService    GRYDContract
-	odbService     OrbitService
+	logger      *logrus.Logger
+	odbService  storage.OrbitService
+	grydService storage.GRYDContract
+	dbService   storage.DBService
 }
 
 func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
@@ -163,7 +145,7 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := c.storageService.Create(r.Context(), &storageVo)
+	resp, err := c.dbService.Create(r.Context(), &storageVo)
 	if err != nil {
 		c.logger.Error("internal server error: ", err)
 

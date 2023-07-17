@@ -15,6 +15,11 @@ var (
 	ErrUnprocessableEvent = errors.New("event cannot be processed or does not exist")
 )
 
+type GRYDContract interface {
+	GetBalance(ctx context.Context) (*big.Int, error)
+	VerifyEvent(ctx context.Context, hashTx string) (*EventInsertDataSuccess, error)
+}
+
 type Contract struct {
 	txService           transaction.Service
 	grydContractAddress common.Address
@@ -34,7 +39,7 @@ type EventInsertDataSuccess struct {
 	QueryType string
 }
 
-func NewContract(txService *transaction.Service, owner common.Address, logger *logrus.Logger, grydAddress common.Address, grydABI abi.ABI) *Contract {
+func NewContract(txService *transaction.Service, owner common.Address, logger *logrus.Logger, grydAddress common.Address, grydABI abi.ABI) GRYDContract {
 	return &Contract{
 		txService:           *txService,
 		grydContractAddress: grydAddress,

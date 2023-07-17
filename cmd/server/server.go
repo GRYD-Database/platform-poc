@@ -36,6 +36,7 @@ type Container struct {
 	txService         *transaction.Service
 	odb               *odb.Database
 
+	http.Handler
 	rpcClient     *rpc.Client
 	grydSemaphore *semaphore.Weighted
 }
@@ -65,13 +66,12 @@ func Init() error {
 
 	grydContract := storage.NewContract(txService, ethAddress, services.logger, GRYDContractAddress, GRYDContractABI)
 
-	storageController := New(
+	odbStorage, dbStorage := storage.New(
+		ethAddress,
 		services.logger,
-		storage.New(
-			ethAddress,
-			services.logger,
-			services.pg, services.odb.Store, services.odb.Ledger),
-		grydContract)
+		services.pg, services.odb.Store, services.odb.Ledger)
+
+	storageController := New(services.logger, odbStorage, dbStorage, grydContract)
 
 	container := ContainerBootstrapper(rpcClient, ethAddress, txService, services, storageController)
 	container.cors()
@@ -100,6 +100,7 @@ func ContainerBootstrapper(
 		txService:         txService,
 		odb:               services.odb,
 		rpcClient:         client,
+		grydSemaphore:     semaphore.NewWeighted(1),
 	}
 }
 
