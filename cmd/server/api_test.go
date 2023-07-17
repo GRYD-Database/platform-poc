@@ -3,11 +3,10 @@ package server
 import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-chi/chi"
-	"github.com/gorilla/websocket"
 	"github.com/gryd-database/platform-poc/configuration"
 	"github.com/gryd-database/platform-poc/pkg/storage/dbMock"
 	"github.com/gryd-database/platform-poc/pkg/storage/grydContractMock"
-	"github.com/gryd-database/platform-poc/pkg/storage/storageMock"
+	"github.com/gryd-database/platform-poc/pkg/storage/odbMock"
 	"github.com/gryd-database/platform-poc/pkg/transaction/txMock"
 	"github.com/sirupsen/logrus"
 	"net/http"
@@ -23,21 +22,21 @@ type testServerOptions struct {
 	ethAddress              common.Address
 	txServiceOpts           []txMock.Option
 	dbServiceOpts           []dbMock.Option
-	odbServiceOpts          []storageMock.Option
+	odbServiceOpts          []odbMock.Option
 	grydContractServiceOpts []grydContractMock.Option
 }
 
 type extraOpts struct {
 }
 
-func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.Conn, string) {
+func newTestServer(t *testing.T, o testServerOptions) *http.Client {
 	t.Helper()
 
 	transaction := txMock.New(o.txServiceOpts...)
 
 	dbService := dbMock.New(o.dbServiceOpts...)
 
-	storageService := storageMock.New(o.odbServiceOpts...)
+	storageService := odbMock.New(o.odbServiceOpts...)
 
 	contractService := grydContractMock.New(o.grydContractServiceOpts...)
 
@@ -47,5 +46,5 @@ func newTestServer(t *testing.T, o testServerOptions) (*http.Client, *websocket.
 
 	server := httptest.NewServer(s)
 
-	return server.Client(), nil, ""
+	return server.Client()
 }

@@ -1,4 +1,4 @@
-package storageMock
+package odbMock
 
 import (
 	"context"

@@ -6,14 +6,20 @@ import (
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-chi/chi"
+	"github.com/google/uuid"
 	"github.com/gryd-database/platform-poc/pkg/storage"
+	"github.com/gryd-database/platform-poc/pkg/storage/dbMock"
 	"github.com/gryd-database/platform-poc/pkg/storage/grydContractMock"
+	"github.com/gryd-database/platform-poc/pkg/storage/odbMock"
+	"github.com/gryd-database/platform-poc/pkg/transaction"
+	"github.com/gryd-database/platform-poc/pkg/transaction/txMock"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 )
 
 func TestCreateStorage(t *testing.T) {
@@ -37,7 +43,22 @@ func TestCreateStorage(t *testing.T) {
 			grydContractMock.WithVerifyEvent(func(ctx context.Context, hashTx string) (*storage.EventInsertDataSuccess, error) {
 				return event, nil
 			}))
-
+		
+		dbService := dbMock.New(
+			dbMock.WithCreate(func(ctx context.Context, voStorage *storage.VoStorage) (*storage.DTOStorage, error) {
+				return &storage.DTOStorage{
+					ID:         uuid.UUID{},
+					Wallet:     address,
+					TxHash:     txHash.String(),
+					CreatedAt:  time.Now(),
+					DatasetKey: uuid.NewString(),
+				}, nil
+			}))
+		
+		odbService := odbMock.New(
+			odbMock.WithAddRecord(func(ctx context.Context, storage *[]storage.InputData) error {
+				
+			})
 		filePath := "../../sampleData.csv"
 		fieldName := "file"
 		body := new(bytes.Buffer)
@@ -80,12 +101,7 @@ func TestCreateStorage(t *testing.T) {
 
 		req.Header.Add("Content-Type", mw.FormDataContentType())
 
-		res := httptest.NewRecorder()
-
-		// router is of type http.Handler
-		router.ServeHTTP(res, req)
-
-		assertStatusCode(t, res.Code, http.StatusBadRequest)
+		testServer := newTestServer()
 	})
 }
 

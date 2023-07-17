@@ -62,6 +62,9 @@ func (m *transactionServiceMock) PendingTransactions() ([]common.Hash, error) {
 }
 
 func (m *transactionServiceMock) FilterLogs(ctx context.Context, query ethereum.FilterQuery) (*[]types.Log, error) {
+	if m.filterLogs != nil {
+		return m.filterLogs(ctx, query)
+	}
 	return nil, errors.New("not implemented")
 }
 
