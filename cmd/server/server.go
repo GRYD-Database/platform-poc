@@ -40,33 +40,40 @@ type Container struct {
 	grydSemaphore *semaphore.Weighted
 }
 
+type BootedServices struct {
+	config *configuration.Config
+	logger *logrus.Logger
+	pg     *pgxpool.Pool
+	odb    *odb.Database
+}
+
 func Init() error {
-	container, err := NewContainer()
+	services, err := ServicesBootstrapper()
 	if err != nil {
 		return fmt.Errorf("failed to initialize services: %w", err)
 	}
 
-	container.logger.Info("Container Initialized Successfully")
+	services.logger.Info("Container Initialized Successfully")
 
-	GRYDContractAddress, GRYDContractABI, err := setContracts(container.config.GRYDContract.Address, container.config.GRYDContract.ABI)
+	GRYDContractAddress, GRYDContractABI, err := setContracts(services.config.GRYDContract.Address, services.config.GRYDContract.ABI)
 	if err != nil {
-		container.logger.Error("failed to parse contract abi, ", err)
+		services.logger.Error("failed to parse contract abi, ", err)
 		return fmt.Errorf("err loading gryd contract: %w", err)
 	}
 
-	container.rpcClient, container.ethAddress, container.txService, err = node.InitChain(context.Background(), container.logger, container.config.ChainConfig.Endpoint, container.config.ChainConfig.PrivateKey)
+	rpcClient, ethAddress, txService, err := node.InitChain(context.Background(), services.logger, services.config.ChainConfig.Endpoint, services.config.ChainConfig.PrivateKey)
 
-	grydContract := storage.NewContract(container.txService, container.ethAddress, container.logger, GRYDContractAddress, GRYDContractABI)
+	grydContract := storage.NewContract(txService, ethAddress, services.logger, GRYDContractAddress, GRYDContractABI)
 
-	container.storageController = New(
-		container.logger,
+	storageController := New(
+		services.logger,
 		storage.New(
-			container.ethAddress,
-			container.logger,
-			container.pg, container.odb.Store, container.odb.Ledger),
+			ethAddress,
+			services.logger,
+			services.pg, services.odb.Store, services.odb.Ledger),
 		grydContract)
 
-	container.router = chi.NewRouter()
+	container := ContainerBootstrapper(rpcClient, ethAddress, txService, services, storageController)
 	container.cors()
 	container.routes()
 
@@ -76,8 +83,28 @@ func Init() error {
 	select {}
 }
 
-// NewContainer bootstrap important services
-func NewContainer() (*Container, error) {
+func ContainerBootstrapper(
+	client *rpc.Client,
+	address common.Address,
+	txService *transaction.Service,
+	services *BootedServices,
+	storageController *StorageController) *Container {
+
+	return &Container{
+		config:            services.config,
+		logger:            services.logger,
+		router:            chi.NewRouter(),
+		pg:                services.pg,
+		storageController: storageController,
+		ethAddress:        address,
+		txService:         txService,
+		odb:               services.odb,
+		rpcClient:         client,
+	}
+}
+
+// ServicesBootstrapper bootstrap important services
+func ServicesBootstrapper() (*BootedServices, error) {
 	confInstance, err := configuration.Init()
 	if err != nil {
 		return nil, fmt.Errorf("error bootstrapping config: %w", err)
@@ -108,7 +135,7 @@ func NewContainer() (*Container, error) {
 		return nil, fmt.Errorf("unable to bootstrap odb: %w", err)
 	}
 
-	return &Container{
+	return &BootedServices{
 		config: confInstance,
 		logger: loggerInstance,
 		pg:     pgInstance,

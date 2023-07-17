@@ -10,6 +10,10 @@ import (
 	"time"
 )
 
+type StorageService interface {
+	Create(ctx context.Context, voStorage *VoStorage) (*DTOStorage, error)
+}
+
 //nolint:golint,gochecknoglobals,varnamelen
 var QB = sq.StatementBuilder.PlaceholderFormat(sq.Dollar)
 

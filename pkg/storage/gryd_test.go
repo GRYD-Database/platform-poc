@@ -10,7 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/gryd-database/platform-poc/configuration"
 	"github.com/gryd-database/platform-poc/pkg/transaction"
-	"github.com/gryd-database/platform-poc/pkg/transaction/mock"
+	"github.com/gryd-database/platform-poc/pkg/transaction/txMock"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"math/big"
@@ -36,7 +36,7 @@ func TestGetBalance(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		txService := mock.New(mock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
+		txService := txMock.New(txMock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
 			if *request.To == grydAddress {
 				if !bytes.Equal(expectedCallData[:64], request.Data[:64]) {
 					return nil, fmt.Errorf("got wrong call data. wanted %x, got %x", expectedCallData, request.Data)
@@ -63,7 +63,7 @@ func TestGetBalance(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		txService := mock.New(mock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
+		txService := txMock.New(txMock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
 			if *request.To == grydAddress {
 				if !bytes.Equal(expectedCallData[:64], request.Data[:64]) {
 					return nil, fmt.Errorf("got wrong call data. wanted %x, got %x", expectedCallData, request.Data)
@@ -84,7 +84,7 @@ func TestGetBalance(t *testing.T) {
 	t.Run("tx service error", func(t *testing.T) {
 		t.Parallel()
 
-		txService := mock.New(mock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
+		txService := txMock.New(txMock.WithCallFunc(func(ctx context.Context, request *transaction.TxRequest) (result []byte, err error) {
 			return nil, errors.New("unexpected call")
 		}))
 
@@ -111,14 +111,14 @@ func TestVerifyEvent(t *testing.T) {
 	t.Run("ok", func(t *testing.T) {
 		t.Parallel()
 
-		txService := mock.New(
-			mock.WithWaitForReceiptFunc(func(ctx context.Context, trHash common.Hash) (receipt *types.Receipt, err error) {
+		txService := txMock.New(
+			txMock.WithWaitForReceiptFunc(func(ctx context.Context, trHash common.Hash) (receipt *types.Receipt, err error) {
 				if txHash == trHash {
 					return &types.Receipt{
 						Status: 1,
 						Logs: []*types.Log{
 							{Topics: []common.Hash{
-								grydContractABI.Events["StorageBought"].ID},
+								grydContractABI.Events["InsertDataSuccess"].ID},
 								Address: grydAddress,
 							}},
 						ContractAddress: grydAddress,
@@ -139,8 +139,8 @@ func TestVerifyEvent(t *testing.T) {
 	t.Run("with incorrect topic", func(t *testing.T) {
 		t.Parallel()
 
-		txService := mock.New(
-			mock.WithWaitForReceiptFunc(func(ctx context.Context, trHash common.Hash) (receipt *types.Receipt, err error) {
+		txService := txMock.New(
+			txMock.WithWaitForReceiptFunc(func(ctx context.Context, trHash common.Hash) (receipt *types.Receipt, err error) {
 				if txHash == trHash {
 					return &types.Receipt{
 						Status: 1,
@@ -166,8 +166,8 @@ func TestVerifyEvent(t *testing.T) {
 	t.Run("with incorrect receipt", func(t *testing.T) {
 		t.Parallel()
 
-		txService := mock.New(
-			mock.WithWaitForReceiptFunc(func(ctx context.Context, trHash common.Hash) (receipt *types.Receipt, err error) {
+		txService := txMock.New(
+			txMock.WithWaitForReceiptFunc(func(ctx context.Context, trHash common.Hash) (receipt *types.Receipt, err error) {
 				return nil, errors.New("unknown tx hash")
 			}))
 
@@ -180,6 +180,7 @@ func TestVerifyEvent(t *testing.T) {
 		}
 	})
 }
+
 func setContracts(address string, jsonABI interface{}) (common.Address, abi.ABI, error) {
 	jsonMarshaledABI, err := json.Marshal(jsonABI)
 	if err != nil {

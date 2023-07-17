@@ -1,4 +1,4 @@
-package mock
+package grydContractMock
 
 import (
 	"context"
@@ -9,10 +9,10 @@ import (
 
 type grydContractMock struct {
 	getBalance  func(ctx context.Context) (*big.Int, error)
-	verifyEvent func(ctx context.Context, hashTx string) (*storage.EventBuyStorage, error)
+	verifyEvent func(ctx context.Context, hashTx string) (*storage.EventInsertDataSuccess, error)
 }
 
-func (g *grydContractMock) VerifyEvent(ctx context.Context, hashTx string) (*storage.EventBuyStorage, error) {
+func (g *grydContractMock) VerifyEvent(ctx context.Context, hashTx string) (*storage.EventInsertDataSuccess, error) {
 	return g.verifyEvent(ctx, hashTx)
 }
 
@@ -40,7 +40,7 @@ func WithGetBalance(f func(ctx context.Context) (*big.Int, error)) Option {
 	}
 }
 
-func WithVerifyEvent(f func(ctx context.Context, hashTx string) (*storage.EventBuyStorage, error)) Option {
+func WithVerifyEvent(f func(ctx context.Context, hashTx string) (*storage.EventInsertDataSuccess, error)) Option {
 	return func(mock *grydContractMock) {
 		mock.verifyEvent = f
 	}

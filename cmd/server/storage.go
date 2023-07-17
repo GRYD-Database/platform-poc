@@ -13,6 +13,7 @@ import (
 	"math/big"
 	"net/http"
 	"regexp"
+	"strings"
 )
 
 func New(logger *logrus.Logger, service *storage.Storage, grydContract *storage.Contract) *StorageController {
@@ -24,7 +25,7 @@ func New(logger *logrus.Logger, service *storage.Storage, grydContract *storage.
 	}
 }
 
-type StorageService interface {
+type DBService interface {
 	Create(ctx context.Context, voStorage *storage.VoStorage) (*storage.DTOStorage, error)
 }
 
@@ -37,22 +38,30 @@ type OrbitService interface {
 
 type GRYDContract interface {
 	GetBalance(ctx context.Context) (*big.Int, error)
-	VerifyEvent(ctx context.Context, hashTx string) (*storage.EventBuyStorage, error)
+	VerifyEvent(ctx context.Context, hashTx string) (*storage.EventInsertDataSuccess, error)
 }
 
 type StorageController struct {
 	logger         *logrus.Logger
-	storageService StorageService
+	storageService DBService
 	grydService    GRYDContract
 	odbService     OrbitService
 }
 
 func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
-	file, _, err := r.FormFile("file")
+	file, mpHeader, err := r.FormFile("file")
 	if err != nil {
 		c.logger.Info("unable to parse form data: ", err)
 
 		WriteJson(w, "unable to parse form data", http.StatusInternalServerError)
+		return
+	}
+
+	contentType := mpHeader.Header.Get("Content-Type")
+	if !strings.Contains(contentType, "csv") {
+		c.logger.Info("unable to parse form data: invalid file extension, only csv is supported")
+
+		WriteJson(w, "unable to parse form data", http.StatusBadRequest)
 		return
 	}
 
@@ -131,7 +140,7 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if event.Buyer != common.HexToAddress(storageVo.Wallet) {
+	if event.User != common.HexToAddress(storageVo.Wallet) {
 		c.logger.Info("cannot verify event for tx: ", storageVo.TxHash)
 
 		WriteJson(w, "cannot verify event for tx", http.StatusBadRequest)
@@ -193,6 +202,3 @@ func (c *StorageController) GetRecordByID(w http.ResponseWriter, r *http.Request
 
 	WriteJson(w, record, http.StatusOK)
 }
-
-// 1553bd83-f1cf-47f4-9a22-1f7251f4dfcd
-// 3b3ae135-a364-462d-8f8f-65ccdb730600

@@ -1,4 +1,4 @@
-package mock
+package txMock
 
 import (
 	"bytes"
@@ -98,7 +98,7 @@ func (m *transactionServiceMock) TransactionFee(ctx context.Context, txHash comm
 	return big.NewInt(0), nil
 }
 
-// Option is the option passed to the mock Chequebook service
+// Option is the option passed to the mock service
 type Option interface {
 	apply(*transactionServiceMock)
 }
