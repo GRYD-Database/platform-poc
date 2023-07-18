@@ -142,7 +142,7 @@ func (d *Database) OrbitBootstrapper() error {
 
 	err = d.Store.Load(d.ctx, -1)
 	if err != nil {
-		d.Logger.Error(err)
+		d.Logger.Error("error loading: %w", err)
 		return err
 	}
 

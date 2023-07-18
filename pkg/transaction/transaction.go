@@ -164,18 +164,18 @@ func (t *TxService) TransactionFee(ctx context.Context, txHash common.Hash) (*bi
 	panic("implement me")
 }
 
-func NewTxService(rpcClient *rpc.Client, logger *logrus.Logger, backend WrappedBackend, signer signer.Signer, chainID *big.Int, address common.Address) (*TxService, error) {
+func NewTxService(rpcClient *rpc.Client, logger *logrus.Logger, backend WrappedBackend, signer signer.Signer, chainID *big.Int, address common.Address) (Service, error) {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &TxService{
-		wg:        sync.WaitGroup{},
-		lock:      sync.Mutex{},
-		ctx:       ctx,
-		cancel:    cancel,
-		logger:    logger,
-		backend:   backend,
-		signer:    signer,
-		sender:    address,
-		chainID:   chainID,
-		rpcClient: rpcClient,
-	}, nil
+	tx := &TxService{
+		wg:      sync.WaitGroup{},
+		lock:    sync.Mutex{},
+		ctx:     ctx,
+		cancel:  cancel,
+		logger:  logger,
+		backend: backend,
+		signer:  signer,
+		sender:  address,
+		chainID: chainID,
+	}
+	return tx, nil
 }
