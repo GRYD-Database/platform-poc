@@ -4,13 +4,9 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/go-chi/chi"
 	"github.com/gryd-database/platform-poc/configuration"
-	"github.com/gryd-database/platform-poc/pkg/storage/dbMock"
-	"github.com/gryd-database/platform-poc/pkg/storage/grydContractMock"
-	"github.com/gryd-database/platform-poc/pkg/storage/odbMock"
+	"github.com/gryd-database/platform-poc/pkg/storage"
 	"github.com/gryd-database/platform-poc/pkg/transaction/txMock"
 	"github.com/sirupsen/logrus"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 )
 
@@ -21,30 +17,30 @@ type testServerOptions struct {
 	storageController       *StorageController
 	ethAddress              common.Address
 	txServiceOpts           []txMock.Option
-	dbServiceOpts           []dbMock.Option
-	odbServiceOpts          []odbMock.Option
-	grydContractServiceOpts []grydContractMock.Option
+	dbServiceOpts           storage.DBService
+	odbServiceOpts          storage.OrbitService
+	grydContractServiceOpts storage.GRYDContract
 }
 
-type extraOpts struct {
-}
-
-func newTestServer(t *testing.T, o testServerOptions) *http.Client {
+func newTestServer(t *testing.T, o testServerOptions) *Container {
 	t.Helper()
 
 	transaction := txMock.New(o.txServiceOpts...)
 
-	dbService := dbMock.New(o.dbServiceOpts...)
+	dbService := o.dbServiceOpts
 
-	storageService := odbMock.New(o.odbServiceOpts...)
+	storageService := o.odbServiceOpts
 
-	contractService := grydContractMock.New(o.grydContractServiceOpts...)
+	contractService := o.grydContractServiceOpts
+
+	config, _ := configuration.Init()
 
 	storageController := New(logrus.New(), storageService, dbService, contractService)
 
-	s := ContainerBootstrapper(nil, o.ethAddress, &transaction, nil, storageController)
+	s := ContainerBootstrapper(nil, o.ethAddress, &transaction, &BootedServices{config: config}, storageController)
 
-	server := httptest.NewServer(s)
+	s.cors()
+	s.routes()
 
-	return server.Client()
+	return s
 }

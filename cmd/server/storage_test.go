@@ -5,19 +5,18 @@ import (
 	"context"
 	"fmt"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/go-chi/chi"
 	"github.com/google/uuid"
 	"github.com/gryd-database/platform-poc/pkg/storage"
 	"github.com/gryd-database/platform-poc/pkg/storage/dbMock"
 	"github.com/gryd-database/platform-poc/pkg/storage/grydContractMock"
 	"github.com/gryd-database/platform-poc/pkg/storage/odbMock"
-	"github.com/gryd-database/platform-poc/pkg/transaction"
-	"github.com/gryd-database/platform-poc/pkg/transaction/txMock"
+	"github.com/magiconair/properties/assert"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 	"time"
 )
@@ -26,7 +25,7 @@ func TestCreateStorage(t *testing.T) {
 	t.Parallel()
 
 	txHash := common.HexToHash("0xcb0caeff88b8bda3656396b19b808cd8b35c0054e96553852441ea2c3f5f4d26")
-	address := "0xD07708adfbE343297E2ABfb31534dD3d78fg452a"
+	address := "0xD07708ad91fbE34329507E2adABfb31534dD3efd"
 	createStorage := func() string {
 		return fmt.Sprintf("/storage/create")
 	}
@@ -39,76 +38,96 @@ func TestCreateStorage(t *testing.T) {
 			QueryType: "create",
 		}
 
+		id, _ := uuid.NewUUID()
+		datasetKey := uuid.NewString()
+
 		contract := grydContractMock.New(
 			grydContractMock.WithVerifyEvent(func(ctx context.Context, hashTx string) (*storage.EventInsertDataSuccess, error) {
 				return event, nil
 			}))
-		
+
 		dbService := dbMock.New(
 			dbMock.WithCreate(func(ctx context.Context, voStorage *storage.VoStorage) (*storage.DTOStorage, error) {
 				return &storage.DTOStorage{
-					ID:         uuid.UUID{},
+					ID:         id,
 					Wallet:     address,
 					TxHash:     txHash.String(),
 					CreatedAt:  time.Now(),
-					DatasetKey: uuid.NewString(),
+					DatasetKey: datasetKey,
 				}, nil
 			}))
-		
+
 		odbService := odbMock.New(
 			odbMock.WithAddRecord(func(ctx context.Context, storage *[]storage.InputData) error {
-				
-			})
-		filePath := "../../sampleData.csv"
-		fieldName := "file"
-		body := new(bytes.Buffer)
+				return nil
+			}),
+			odbMock.WithLedger(func(ctx context.Context, wallet, datasetKey string) error {
+				return nil
+			}))
 
-		mw := multipart.NewWriter(body)
+		testServer := newTestServer(t, testServerOptions{odbServiceOpts: odbService, dbServiceOpts: dbService, grydContractServiceOpts: contract})
 
-		file, err := os.Open(filePath)
+		//prepare the reader instances to encode
+		v := map[string]io.Reader{
+			"file":   mustOpen("../../sampleData.csv"),
+			"wallet": strings.NewReader(address),
+			"txHash": strings.NewReader(txHash.String()),
+		}
+
+		req, err := Upload(v, createStorage())
 		if err != nil {
 			t.Fatal(err)
 		}
-
-		w, err := mw.CreateFormFile(fieldName, filePath)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if _, err := io.Copy(w, file); err != nil {
-			t.Fatal(err)
-		}
-
-		wallet, err := mw.CreateFormField("wallet")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		wallet.Write([]byte(address))
-
-		tx, err := mw.CreateFormField("txHash")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		tx.Write(txHash.Bytes())
-
-		// close the writer before making the request
-		mw.Close()
-
-		router := chi.NewRouter()
-		req := httptest.NewRequest(http.MethodPost, createStorage(), body)
-
-		req.Header.Add("Content-Type", mw.FormDataContentType())
-
-		testServer := newTestServer()
+		rr := httptest.NewRecorder()
+		testServer.router.ServeHTTP(rr, req)
+		assert.Equal(t, rr.Result().StatusCode, http.StatusOK)
 	})
 }
 
-func assertStatusCode(t testing.TB, got, want int) {
-	t.Helper()
+func Upload(values map[string]io.Reader, url string) (req *http.Request, err error) {
+	// Prepare a form that you will submit to that URL.
+	var b bytes.Buffer
+	w := multipart.NewWriter(&b)
+	for key, r := range values {
+		var fw io.Writer
+		if x, ok := r.(io.Closer); ok {
+			defer x.Close()
+		}
+		// Add an image file
+		if x, ok := r.(*os.File); ok {
+			if fw, err = w.CreateFormFile(key, x.Name()); err != nil {
+				return
+			}
+		} else {
+			// Add other fields
+			if fw, err = w.CreateFormField(key); err != nil {
+				return
+			}
+		}
+		if _, err = io.Copy(fw, r); err != nil {
+			return nil, err
+		}
 
-	if got != want {
-		t.Errorf("handler returned wrong status code: got %v want %v", got, want)
 	}
+	// Don't forget to close the multipart writer.
+	// If you don't close it, your request will be missing the terminating boundary.
+	w.Close()
+
+	// Now that you have a form, you can submit it to your handler.
+	req, err = http.NewRequest("POST", url, &b)
+	if err != nil {
+		return
+	}
+	// Don't forget to set the content type, this will contain the boundary.
+	req.Header.Add("Content-Type", w.FormDataContentType())
+	fmt.Println(w.FormDataContentType())
+	return req, nil
+}
+
+func mustOpen(f string) *os.File {
+	r, err := os.Open(f)
+	if err != nil {
+		panic(err)
+	}
+	return r
 }

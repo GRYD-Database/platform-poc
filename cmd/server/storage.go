@@ -11,7 +11,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"net/http"
 	"regexp"
-	"strings"
 )
 
 func New(logger *logrus.Logger, storage storage.OrbitService, dbService storage.DBService, grydContract storage.GRYDContract) *StorageController {
@@ -31,19 +30,11 @@ type StorageController struct {
 }
 
 func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
-	file, mpHeader, err := r.FormFile("file")
+	file, _, err := r.FormFile("file")
 	if err != nil {
 		c.logger.Info("unable to parse form data: ", err)
 
 		WriteJson(w, "unable to parse form data", http.StatusInternalServerError)
-		return
-	}
-
-	contentType := mpHeader.Header.Get("Content-Type")
-	if !strings.Contains(contentType, "csv") {
-		c.logger.Info("unable to parse form data: invalid file extension, only csv is supported")
-
-		WriteJson(w, "unable to parse form data", http.StatusBadRequest)
 		return
 	}
 

@@ -35,10 +35,8 @@ type Container struct {
 	ethAddress        common.Address
 	txService         *transaction.Service
 	odb               *odb.Database
-
-	http.Handler
-	rpcClient     *rpc.Client
-	grydSemaphore *semaphore.Weighted
+	rpcClient         *rpc.Client
+	grydSemaphore     *semaphore.Weighted
 }
 
 type BootedServices struct {
