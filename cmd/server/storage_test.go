@@ -78,8 +78,11 @@ func TestCreateStorage(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+
 		rr := httptest.NewRecorder()
+
 		testServer.router.ServeHTTP(rr, req)
+
 		assert.Equal(t, rr.Result().StatusCode, http.StatusOK)
 	})
 }
