@@ -33,7 +33,10 @@ func newTestServer(t *testing.T, o testServerOptions) *Container {
 
 	contractService := o.grydContractServiceOpts
 
-	config, _ := configuration.Init()
+	config, err := configuration.Init()
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	storageController := New(logrus.New(), storageService, dbService, contractService)
 
