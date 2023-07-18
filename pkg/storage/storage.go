@@ -11,6 +11,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type OrbitService interface {
+	AddRecord(ctx context.Context, storage *[]InputData) error
+	Ledger(ctx context.Context, wallet, datasetKey string) error
+	GetWalletByDatasetKey(ctx context.Context, key string) (*Ledger, error)
+	GetRecordByID(ctx context.Context, id string) (*InputData, error)
+}
+
 type InputData struct {
 	DatasetKey string `mapstructure:"datasetKey" json:"datasetKey"`
 	ID         string `mapstructure:"id" json:"id"`
@@ -34,14 +41,15 @@ type Storage struct {
 	owner    common.Address
 }
 
-func New(owner common.Address, logger *logrus.Logger, pool *pgxpool.Pool, store orbitdb.DocumentStore, ledger orbitdb.DocumentStore) *Storage {
-	return &Storage{
+func New(owner common.Address, logger *logrus.Logger, pool *pgxpool.Pool, store orbitdb.DocumentStore, ledger orbitdb.DocumentStore) (OrbitService, DBService) {
+	storage := &Storage{
 		logger:   logger,
 		pg:       pool,
 		owner:    owner,
 		odbStore: store,
 		ledger:   ledger,
 	}
+	return storage, storage
 }
 
 func (s *Storage) Ledger(ctx context.Context, wallet, datasetKey string) error {

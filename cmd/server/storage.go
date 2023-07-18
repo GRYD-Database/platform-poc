@@ -1,7 +1,6 @@
 package server
 
 import (
-	"context"
 	"encoding/csv"
 	"errors"
 	"github.com/ethereum/go-ethereum/common"
@@ -10,41 +9,24 @@ import (
 	"github.com/gryd-database/platform-poc/pkg/storage"
 	"github.com/gryd-database/platform-poc/pkg/transaction"
 	"github.com/sirupsen/logrus"
-	"math/big"
 	"net/http"
 	"regexp"
 )
 
-func New(logger *logrus.Logger, service *storage.Storage, grydContract *storage.Contract) *StorageController {
+func New(logger *logrus.Logger, storage storage.OrbitService, dbService storage.DBService, grydContract storage.GRYDContract) *StorageController {
 	return &StorageController{
-		logger:         logger,
-		storageService: service,
-		odbService:     service,
-		grydService:    grydContract,
+		logger:      logger,
+		odbService:  storage,
+		dbService:   dbService,
+		grydService: grydContract,
 	}
 }
 
-type StorageService interface {
-	Create(ctx context.Context, voStorage *storage.VoStorage) (*storage.DTOStorage, error)
-}
-
-type OrbitService interface {
-	AddRecord(ctx context.Context, storage *[]storage.InputData) error
-	Ledger(ctx context.Context, wallet, datasetKey string) error
-	GetWalletByDatasetKey(ctx context.Context, key string) (*storage.Ledger, error)
-	GetRecordByID(ctx context.Context, id string) (*storage.InputData, error)
-}
-
-type GRYDContract interface {
-	GetBalance(ctx context.Context) (*big.Int, error)
-	VerifyEvent(ctx context.Context, hashTx string) (*storage.EventBuyStorage, error)
-}
-
 type StorageController struct {
-	logger         *logrus.Logger
-	storageService StorageService
-	grydService    GRYDContract
-	odbService     OrbitService
+	logger      *logrus.Logger
+	odbService  storage.OrbitService
+	grydService storage.GRYDContract
+	dbService   storage.DBService
 }
 
 func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
@@ -131,7 +113,7 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if event.Buyer != common.HexToAddress(storageVo.Wallet) {
+	if event.User != common.HexToAddress(storageVo.Wallet) {
 		c.logger.Info("cannot verify event for tx: ", storageVo.TxHash)
 
 		WriteJson(w, "cannot verify event for tx", http.StatusBadRequest)
@@ -154,7 +136,7 @@ func (c *StorageController) Create(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	resp, err := c.storageService.Create(r.Context(), &storageVo)
+	resp, err := c.dbService.Create(r.Context(), &storageVo)
 	if err != nil {
 		c.logger.Error("internal server error: ", err)
 
@@ -193,6 +175,3 @@ func (c *StorageController) GetRecordByID(w http.ResponseWriter, r *http.Request
 
 	WriteJson(w, record, http.StatusOK)
 }
-
-// 1553bd83-f1cf-47f4-9a22-1f7251f4dfcd
-// 3b3ae135-a364-462d-8f8f-65ccdb730600
