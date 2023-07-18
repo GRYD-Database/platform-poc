@@ -13,7 +13,6 @@ import (
 	"github.com/libp2p/go-libp2p/core/crypto"
 	"github.com/libp2p/go-libp2p/core/event"
 	"github.com/sirupsen/logrus"
-	"go.uber.org/zap"
 	"strings"
 	"time"
 )
@@ -143,7 +142,7 @@ func (d *Database) OrbitBootstrapper() error {
 
 	err = d.Store.Load(d.ctx, -1)
 	if err != nil {
-		d.Logger.Error("%s", zap.Error(err))
+		d.Logger.Error(err)
 		return err
 	}
 
