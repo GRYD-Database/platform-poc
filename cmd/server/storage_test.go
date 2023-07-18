@@ -93,7 +93,7 @@ func Upload(values map[string]io.Reader, url string) (req *http.Request, err err
 		if x, ok := r.(io.Closer); ok {
 			defer x.Close()
 		}
-		// Add an image file
+
 		if x, ok := r.(*os.File); ok {
 			if fw, err = w.CreateFormFile(key, x.Name()); err != nil {
 				return
